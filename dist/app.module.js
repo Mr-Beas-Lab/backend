@@ -8,13 +8,20 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AppModule = void 0;
 const common_1 = require("@nestjs/common");
-const customers_module_1 = require("./customers/customers.module");
+const config_1 = require("@nestjs/config");
 const firebase_module_1 = require("./firebase/firebase.module");
+const customers_module_1 = require("./customers/customers.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
-        imports: [customers_module_1.CustomersModule, firebase_module_1.FirebaseModule],
+        imports: [
+            config_1.ConfigModule.forRoot({
+                isGlobal: true,
+            }),
+            firebase_module_1.FirebaseModule,
+            customers_module_1.CustomersModule,
+        ],
     })
 ], AppModule);

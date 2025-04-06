@@ -11,9 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateCustomerDto = void 0;
 const class_validator_1 = require("class-validator");
-const class_transformer_1 = require("class-transformer");
-const address_dto_1 = require("./address.dto");
-const identity_document_dto_1 = require("./identity-document.dto");
+const swagger_1 = require("@nestjs/swagger");
 class CreateCustomerDto {
     constructor(partial = {}) {
         Object.assign(this, partial);
@@ -21,43 +19,53 @@ class CreateCustomerDto {
 }
 exports.CreateCustomerDto = CreateCustomerDto;
 __decorate([
+    (0, swagger_1.ApiProperty)({ example: 'john.doe@example.com' }),
     (0, class_validator_1.IsEmail)(),
     __metadata("design:type", String)
 ], CreateCustomerDto.prototype, "email", void 0);
 __decorate([
+    (0, swagger_1.ApiProperty)({ example: '+251912345678' }),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], CreateCustomerDto.prototype, "phone_number", void 0);
 __decorate([
+    (0, swagger_1.ApiProperty)({ example: 'John' }),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], CreateCustomerDto.prototype, "first_name", void 0);
 __decorate([
+    (0, swagger_1.ApiProperty)({ example: 'Doe' }),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], CreateCustomerDto.prototype, "last_name", void 0);
 __decorate([
-    (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, swagger_1.ApiProperty)({ example: '1990-01-01' }),
+    (0, class_validator_1.IsDateString)(),
     __metadata("design:type", String)
 ], CreateCustomerDto.prototype, "dateOfBirth", void 0);
 __decorate([
+    (0, swagger_1.ApiProperty)({ example: '123456789', required: false }),
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreateCustomerDto.prototype, "taxId", void 0);
 __decorate([
-    (0, class_validator_1.IsNotEmpty)(),
-    (0, class_validator_1.ValidateNested)(),
-    (0, class_transformer_1.Type)(() => address_dto_1.AddressDto),
-    __metadata("design:type", address_dto_1.AddressDto)
+    (0, swagger_1.ApiProperty)(),
+    __metadata("design:type", Object)
 ], CreateCustomerDto.prototype, "address", void 0);
 __decorate([
-    (0, class_validator_1.IsNotEmpty)(),
-    (0, class_validator_1.ValidateNested)(),
-    (0, class_transformer_1.Type)(() => identity_document_dto_1.IdentityDocumentDto),
-    __metadata("design:type", identity_document_dto_1.IdentityDocumentDto)
+    (0, swagger_1.ApiProperty)(),
+    __metadata("design:type", Object)
 ], CreateCustomerDto.prototype, "identityDocument", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: '192.168.1.1', required: false }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateCustomerDto.prototype, "ipAddress", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: '123456789', required: false }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateCustomerDto.prototype, "telegramId", void 0);

@@ -1,8 +1,15 @@
 import { Module } from '@nestjs/common';
-import { CustomersModule } from './customers/customers.module';
+import { ConfigModule } from '@nestjs/config';
 import { FirebaseModule } from './firebase/firebase.module';
+import { CustomersModule } from './customers/customers.module';
 
 @Module({
-  imports: [CustomersModule, FirebaseModule],
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
+    FirebaseModule,
+    CustomersModule,
+  ],
 })
 export class AppModule {}

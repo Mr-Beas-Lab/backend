@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AddressDto = void 0;
 const class_validator_1 = require("class-validator");
+const swagger_1 = require("@nestjs/swagger");
 class AddressDto {
     constructor(partial = {}) {
         Object.assign(this, partial);
@@ -18,31 +19,37 @@ class AddressDto {
 }
 exports.AddressDto = AddressDto;
 __decorate([
+    (0, swagger_1.ApiProperty)({ example: '123 Main St', description: 'Primary address line' }),
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], AddressDto.prototype, "addressLine1", void 0);
 __decorate([
+    (0, swagger_1.ApiProperty)({ example: 'Apt 4B', description: 'Secondary address line', required: false }),
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], AddressDto.prototype, "addressLine2", void 0);
 __decorate([
+    (0, swagger_1.ApiProperty)({ example: 'New York', description: 'City name' }),
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], AddressDto.prototype, "city", void 0);
 __decorate([
+    (0, swagger_1.ApiProperty)({ example: 'NY', description: 'State, province, or region' }),
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], AddressDto.prototype, "stateProvinceRegion", void 0);
 __decorate([
+    (0, swagger_1.ApiProperty)({ example: 'USA', description: 'Country name' }),
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], AddressDto.prototype, "country", void 0);
 __decorate([
+    (0, swagger_1.ApiProperty)({ example: '10001', description: 'Postal or ZIP code' }),
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
