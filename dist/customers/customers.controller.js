@@ -16,67 +16,28 @@ exports.CustomersController = void 0;
 const common_1 = require("@nestjs/common");
 const customers_service_1 = require("./customers.service");
 const create_customer_dto_1 = require("./dto/create-customer.dto");
-const update_customer_dto_1 = require("./dto/update-customer.dto");
 const swagger_1 = require("@nestjs/swagger");
-const platform_express_1 = require("@nestjs/platform-express");
+const bank_accounts_service_1 = require("../bank-accounts/bank-accounts.service");
+const create_bank_account_dto_1 = require("../bank-accounts/dto/create-bank-account.dto");
 let CustomersController = class CustomersController {
-    constructor(customersService) {
+    constructor(customersService, bankAccountsService) {
         this.customersService = customersService;
+        this.bankAccountsService = bankAccountsService;
     }
-    create(createCustomerDto, files) {
-        // Initialize identityDocument if it doesn't exist
-        if (!createCustomerDto.identityDocument) {
-            createCustomerDto.identityDocument = {};
-        }
-        // Convert string to object if needed
-        if (typeof createCustomerDto.identityDocument === 'string') {
-            try {
-                createCustomerDto.identityDocument = JSON.parse(createCustomerDto.identityDocument);
-            }
-            catch (e) {
-                createCustomerDto.identityDocument = {};
-            }
-        }
-        // Add files to the DTO
-        if (files.idDocFrontFile?.[0]) {
-            createCustomerDto.identityDocument.idDocFrontFile = files.idDocFrontFile[0];
-        }
-        if (files.idDocBackFile?.[0]) {
-            createCustomerDto.identityDocument.idDocBackFile = files.idDocBackFile[0];
-        }
+    create(createCustomerDto) {
         return this.customersService.create(createCustomerDto);
     }
-    findAll() {
-        return this.customersService.findAll();
+    findByTelegramId(telegramId) {
+        return this.customersService.findByTelegramId(telegramId);
     }
-    findOne(id) {
-        return this.customersService.findOne(id);
+    createBankAccount(customerId, createBankAccountDto) {
+        return this.bankAccountsService.create(createBankAccountDto, customerId);
     }
-    update(id, updateCustomerDto, files) {
-        // Initialize identityDocument if it doesn't exist
-        if (!updateCustomerDto.identityDocument) {
-            updateCustomerDto.identityDocument = {};
-        }
-        // Convert string to object if needed
-        if (typeof updateCustomerDto.identityDocument === 'string') {
-            try {
-                updateCustomerDto.identityDocument = JSON.parse(updateCustomerDto.identityDocument);
-            }
-            catch (e) {
-                updateCustomerDto.identityDocument = {};
-            }
-        }
-        // Add files to the DTO
-        if (files.idDocFrontFile?.[0]) {
-            updateCustomerDto.identityDocument.idDocFrontFile = files.idDocFrontFile[0];
-        }
-        if (files.idDocBackFile?.[0]) {
-            updateCustomerDto.identityDocument.idDocBackFile = files.idDocBackFile[0];
-        }
-        return this.customersService.update(id, updateCustomerDto);
+    getCustomerBankAccounts(customerId) {
+        return this.bankAccountsService.findByCustomerId(customerId);
     }
-    remove(id) {
-        return this.customersService.remove(id);
+    getCustomerBankAccount(customerId, id) {
+        return this.bankAccountsService.findOne(id);
     }
 };
 exports.CustomersController = CustomersController;
@@ -85,67 +46,57 @@ __decorate([
     (0, swagger_1.ApiOperation)({ summary: 'Create a new customer' }),
     (0, swagger_1.ApiResponse)({ status: 201, description: 'The customer has been successfully created.' }),
     (0, swagger_1.ApiResponse)({ status: 400, description: 'Bad Request.' }),
-    (0, swagger_1.ApiConsumes)('multipart/form-data'),
-    (0, common_1.UseInterceptors)((0, platform_express_1.FileFieldsInterceptor)([
-        { name: 'idDocFrontFile', maxCount: 1 },
-        { name: 'idDocBackFile', maxCount: 1 },
-    ])),
     __param(0, (0, common_1.Body)()),
-    __param(1, (0, common_1.UploadedFiles)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [create_customer_dto_1.CreateCustomerDto, Object]),
+    __metadata("design:paramtypes", [create_customer_dto_1.CreateCustomerDto]),
     __metadata("design:returntype", void 0)
 ], CustomersController.prototype, "create", null);
 __decorate([
-    (0, common_1.Get)(),
-    (0, swagger_1.ApiOperation)({ summary: 'Get all customers' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'Return all customers.' }),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", void 0)
-], CustomersController.prototype, "findAll", null);
-__decorate([
-    (0, common_1.Get)(':id'),
-    (0, swagger_1.ApiOperation)({ summary: 'Get a customer by id' }),
-    (0, swagger_1.ApiParam)({ name: 'id', description: 'Customer ID' }),
+    (0, common_1.Get)('telegram/:telegramId'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get a customer by Telegram ID' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Return the customer.' }),
     (0, swagger_1.ApiResponse)({ status: 404, description: 'Customer not found.' }),
-    __param(0, (0, common_1.Param)('id')),
+    __param(0, (0, common_1.Param)('telegramId')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
-], CustomersController.prototype, "findOne", null);
+], CustomersController.prototype, "findByTelegramId", null);
 __decorate([
-    (0, common_1.Patch)(':id'),
-    (0, swagger_1.ApiOperation)({ summary: 'Update a customer' }),
-    (0, swagger_1.ApiParam)({ name: 'id', description: 'Customer ID' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'The customer has been successfully updated.' }),
+    (0, common_1.Post)(':customerId/bank-accounts'),
+    (0, swagger_1.ApiOperation)({ summary: 'Create a bank account for a customer' }),
+    (0, swagger_1.ApiResponse)({ status: 201, description: 'The bank account has been successfully created.' }),
+    (0, swagger_1.ApiResponse)({ status: 400, description: 'Bad Request.' }),
     (0, swagger_1.ApiResponse)({ status: 404, description: 'Customer not found.' }),
-    (0, swagger_1.ApiConsumes)('multipart/form-data'),
-    (0, common_1.UseInterceptors)((0, platform_express_1.FileFieldsInterceptor)([
-        { name: 'idDocFrontFile', maxCount: 1 },
-        { name: 'idDocBackFile', maxCount: 1 },
-    ])),
-    __param(0, (0, common_1.Param)('id')),
+    __param(0, (0, common_1.Param)('customerId')),
     __param(1, (0, common_1.Body)()),
-    __param(2, (0, common_1.UploadedFiles)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, update_customer_dto_1.UpdateCustomerDto, Object]),
+    __metadata("design:paramtypes", [String, create_bank_account_dto_1.CreateBankAccountDto]),
     __metadata("design:returntype", void 0)
-], CustomersController.prototype, "update", null);
+], CustomersController.prototype, "createBankAccount", null);
 __decorate([
-    (0, common_1.Delete)(':id'),
-    (0, swagger_1.ApiOperation)({ summary: 'Delete a customer' }),
-    (0, swagger_1.ApiParam)({ name: 'id', description: 'Customer ID' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'The customer has been successfully deleted.' }),
+    (0, common_1.Get)(':customerId/bank-accounts'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get all bank accounts for a customer' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Return all bank accounts for the customer.' }),
     (0, swagger_1.ApiResponse)({ status: 404, description: 'Customer not found.' }),
-    __param(0, (0, common_1.Param)('id')),
+    __param(0, (0, common_1.Param)('customerId')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
-], CustomersController.prototype, "remove", null);
+], CustomersController.prototype, "getCustomerBankAccounts", null);
+__decorate([
+    (0, common_1.Get)(':customerId/bank-accounts/:id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get a specific bank account by ID for a customer' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Return the bank account.' }),
+    (0, swagger_1.ApiResponse)({ status: 404, description: 'Bank account not found.' }),
+    __param(0, (0, common_1.Param)('customerId')),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], CustomersController.prototype, "getCustomerBankAccount", null);
 exports.CustomersController = CustomersController = __decorate([
     (0, swagger_1.ApiTags)('customers'),
     (0, common_1.Controller)('customers'),
-    __metadata("design:paramtypes", [customers_service_1.CustomersService])
+    __metadata("design:paramtypes", [customers_service_1.CustomersService,
+        bank_accounts_service_1.BankAccountsService])
 ], CustomersController);

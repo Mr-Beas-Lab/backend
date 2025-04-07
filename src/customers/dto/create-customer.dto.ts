@@ -1,52 +1,30 @@
-import { IsString, IsNotEmpty, IsEmail, IsOptional, ValidateNested, IsDateString, IsObject } from 'class-validator';
-import { Type } from 'class-transformer';
-import { AddressDto } from './address.dto';
-import { IdentityDocumentDto } from './identity-document.dto';
+import { IsString, IsEmail, IsIn, IsNotEmpty } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateCustomerDto {
-  @ApiProperty({ example: 'john.doe@example.com' })
+  @ApiProperty({ description: 'Customer legal name' })
+  @IsString()
+  @IsNotEmpty()
+  legal_name!: string;
+
+  @ApiProperty({ description: 'Customer email' })
   @IsEmail()
+  @IsNotEmpty()
   email!: string;
 
-  @ApiProperty({ example: '+251912345678' })
+  @ApiProperty({ description: 'Customer phone number' })
   @IsString()
+  @IsNotEmpty()
   phone_number!: string;
 
-  @ApiProperty({ example: 'John' })
+  @ApiProperty({ description: 'Customer type', enum: ['individual', 'business'] })
   @IsString()
-  first_name!: string;
+  @IsIn(['individual', 'business'])
+  @IsNotEmpty()
+  type!: 'individual' | 'business';
 
-  @ApiProperty({ example: 'Doe' })
+  @ApiProperty({ description: 'Customer Telegram ID' })
   @IsString()
-  last_name!: string;
-
-  @ApiProperty({ example: '1990-01-01' })
-  @IsDateString()
-  dateOfBirth!: string;
-
-  @ApiProperty({ example: '123456789', required: false })
-  @IsString()
-  @IsOptional()
-  taxId?: string;
-
-  @ApiProperty()
-  address: any;
-
-  @ApiProperty()
-  identityDocument: any;
-
-  @ApiProperty({ example: '192.168.1.1', required: false })
-  @IsString()
-  @IsOptional()
-  ipAddress?: string;
-
-  @ApiProperty({ example: '123456789', required: false })
-  @IsString()
-  @IsOptional()
-  telegramId?: string;
-
-  constructor(partial: Partial<CreateCustomerDto> = {}) {
-    Object.assign(this, partial);
-  }
+  @IsNotEmpty()
+  telegram_id!: string;
 }

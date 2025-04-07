@@ -6,21 +6,18 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CustomersModule = void 0;
+exports.BankAccountsModule = void 0;
 const common_1 = require("@nestjs/common");
-const customers_controller_1 = require("./customers.controller");
-const customers_service_1 = require("./customers.service");
-const firebase_module_1 = require("../firebase/firebase.module");
+const bank_accounts_service_1 = require("./bank-accounts.service");
 const external_api_module_1 = require("../external-api/external-api.module");
-const bank_accounts_module_1 = require("../bank-accounts/bank-accounts.module");
-let CustomersModule = class CustomersModule {
+const firebase_module_1 = require("../firebase/firebase.module");
+let BankAccountsModule = class BankAccountsModule {
 };
-exports.CustomersModule = CustomersModule;
-exports.CustomersModule = CustomersModule = __decorate([
+exports.BankAccountsModule = BankAccountsModule;
+exports.BankAccountsModule = BankAccountsModule = __decorate([
     (0, common_1.Module)({
-        imports: [firebase_module_1.FirebaseModule, external_api_module_1.ExternalApiModule, bank_accounts_module_1.BankAccountsModule],
-        controllers: [customers_controller_1.CustomersController],
-        providers: [customers_service_1.CustomersService],
-        exports: [customers_service_1.CustomersService]
+        imports: [external_api_module_1.ExternalApiModule, firebase_module_1.FirebaseModule],
+        providers: [bank_accounts_service_1.BankAccountsService],
+        exports: [bank_accounts_service_1.BankAccountsService]
     })
-], CustomersModule);
+], BankAccountsModule);

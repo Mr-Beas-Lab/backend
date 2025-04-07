@@ -9,40 +9,43 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CreateCustomerDto = void 0;
+exports.CreateBankAccountDto = void 0;
 const class_validator_1 = require("class-validator");
-const swagger_1 = require("@nestjs/swagger");
-class CreateCustomerDto {
+class CreateBankAccountDto {
 }
-exports.CreateCustomerDto = CreateCustomerDto;
+exports.CreateBankAccountDto = CreateBankAccountDto;
 __decorate([
-    (0, swagger_1.ApiProperty)({ description: 'Customer legal name' }),
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
-], CreateCustomerDto.prototype, "legal_name", void 0);
+], CreateBankAccountDto.prototype, "bank_code", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ description: 'Customer email' }),
-    (0, class_validator_1.IsEmail)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
-], CreateCustomerDto.prototype, "email", void 0);
+], CreateBankAccountDto.prototype, "country_code", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ description: 'Customer phone number' }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateBankAccountDto.prototype, "beneficiary_name", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateBankAccountDto.prototype, "account_number", void 0);
+__decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
-], CreateCustomerDto.prototype, "phone_number", void 0);
+], CreateBankAccountDto.prototype, "id_doc_number", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ description: 'Customer type', enum: ['individual', 'business'] }),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsIn)(['individual', 'business']),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
-], CreateCustomerDto.prototype, "type", void 0);
+], CreateBankAccountDto.prototype, "account_type", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ description: 'Customer Telegram ID' }),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
-], CreateCustomerDto.prototype, "telegram_id", void 0);
+], CreateBankAccountDto.prototype, "phone_number", void 0);

@@ -23,38 +23,38 @@ let CustomersService = CustomersService_1 = class CustomersService {
     async create(createCustomerDto) {
         try {
             this.logger.log('Creating customer in Kontigo API...');
-            // Prepare data for Kontigo API with only essential fields
+            // Prepare data for Kontigo API
             const kontigoData = {
                 type: createCustomerDto.type,
                 email: createCustomerDto.email,
                 phone_number: createCustomerDto.phone_number,
-                first_name: createCustomerDto.legal_name,
-                last_name: '' // Empty string for last_name
+                first_name: createCustomerDto.legal_name, // Store legal_name as is
+                last_name: '', // Empty string for last_name
+                // Required default values for Kontigo API
+                date_of_birth: new Date().toISOString().split('T')[0], // Current date as default
+                country: 'VE',
+                id_doc_type: 'national_id',
+                id_doc_country: 'VE',
+                kyc_type: 'document',
+                purpose_of_transactions: 'personal',
+                purpose_of_transactions_explanation: 'Personal transactions'
             };
             // Send data to Kontigo API
             const kontigoResponse = await this.externalApiService.sendCustomerToKontigo(kontigoData);
             this.logger.log('Customer created in Kontigo API:', kontigoResponse);
-            // Verify that we have a valid customer ID from Kontigo
-            if (!kontigoResponse.id) {
-                throw new common_1.HttpException('Invalid response from Kontigo API: Missing customer ID', common_1.HttpStatus.INTERNAL_SERVER_ERROR);
-            }
-            // Store only essential data in Firestore
+            // Store Kontigo customer ID with Telegram ID in Firestore
             const customerData = {
                 kontigoCustomerId: kontigoResponse.id,
                 telegram_id: createCustomerDto.telegram_id,
                 email: createCustomerDto.email,
-                legal_name: createCustomerDto.legal_name,
+                legal_name: createCustomerDto.legal_name, // Store legal_name as is
                 type: createCustomerDto.type,
-                phone_number: createCustomerDto.phone_number,
                 createdAt: new Date().toISOString()
             };
-            // Log the customer data before saving to Firestore
-            this.logger.log('Saving customer data to Firestore:', customerData);
             // Save to Firestore
             const firestore = this.firebaseService.getFirestore();
             const customerRef = await firestore.collection('customers').add(customerData);
             this.logger.log('Customer data stored in Firestore with ID:', customerRef.id);
-            this.logger.log('Stored Kontigo customer ID:', customerData.kontigoCustomerId);
             return {
                 id: customerRef.id,
                 ...customerData

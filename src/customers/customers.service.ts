@@ -1,190 +1,86 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { FirebaseService } from '../firebase/firebase.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
-import { UpdateCustomerDto } from './dto/update-customer.dto';
-import { v4 as uuidv4 } from 'uuid';
+import { ExternalApiService } from '../external-api/external-api.service';
 
 @Injectable()
 export class CustomersService {
-  private readonly collection = 'customers';
   private readonly logger = new Logger(CustomersService.name);
 
-  constructor(private readonly firebaseService: FirebaseService) {}
-
-  private async uploadFile(file: Express.Multer.File, customerId: string, side: 'front' | 'back'): Promise<string> {
-    try {
-      const storage = this.firebaseService.getStorage();
-      const fileExtension = file.originalname.split('.').pop();
-      
-      // Create a more organized folder structure: customers/{customerId}/{side}.{extension}
-      const fileName = `customers/${customerId}/${side}.${fileExtension}`;
-      const bucketName = this.firebaseService.getBucketName();
-      this.logger.log(`Uploading file to bucket: ${bucketName}`);
-      this.logger.log(`File path: ${fileName}`);
-      
-      // Get the bucket directly using the bucket name
-      const bucket = storage.bucket(bucketName);
-      const fileRef = bucket.file(fileName);
-
-      // Upload the file
-      this.logger.log('Starting file upload...');
-      await fileRef.save(file.buffer, {
-        metadata: {
-          contentType: file.mimetype,
-        },
-      });
-      this.logger.log('File upload completed');
-
-      // Make the file publicly accessible
-      this.logger.log('Making file public...');
-      await fileRef.makePublic();
-      this.logger.log('File is now public');
-
-      // Get the public URL - use the correct format for Firebase Storage
-      // The correct format is: https://firebasestorage.googleapis.com/v0/b/{bucketName}/o/{fileName}?alt=media
-      const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(fileName)}?alt=media`;
-      this.logger.log(`Public URL: ${publicUrl}`);
-      return publicUrl;
-    } catch (error: any) {
-      this.logger.error('File upload error:', error);
-      if (error.response && error.response.data) {
-        this.logger.error('Error response:', error.response.data);
-      }
-      throw new BadRequestException('Failed to upload file. Please try again.');
-    }
-  }
-
-  private parseObjectIfString(value: any): any {
-    if (typeof value === 'string') {
-      try {
-        return JSON.parse(value);
-      } catch (e) {
-        return value;
-      }
-    }
-    return value;
-  }
+  constructor(
+    private readonly firebaseService: FirebaseService,
+    private readonly externalApiService: ExternalApiService,
+  ) {}
 
   async create(createCustomerDto: CreateCustomerDto) {
     try {
-      const firestore = this.firebaseService.getFirestore();
+      this.logger.log('Creating customer in Kontigo API...');
       
-      // Create a new document with a custom ID that starts with "cust_"
-      const customerId = `cust_${uuidv4()}`;
-      const docRef = firestore.collection(this.collection).doc(customerId);
-
-      // Parse address and identityDocument if they're strings
-      const parsedDto = {
-        ...createCustomerDto,
-        address: this.parseObjectIfString(createCustomerDto.address),
-        identityDocument: this.parseObjectIfString(createCustomerDto.identityDocument)
+      // Prepare data for Kontigo API with only essential fields
+      const kontigoData = {
+        type: createCustomerDto.type,
+        email: createCustomerDto.email,
+        phone_number: createCustomerDto.phone_number,
+        first_name: createCustomerDto.legal_name,
+        last_name: '' // Empty string for last_name
       };
 
-      // Handle file uploads if they exist
-      if (parsedDto.identityDocument?.idDocFrontFile) {
-        const frontUrl = await this.uploadFile(
-          parsedDto.identityDocument.idDocFrontFile,
-          customerId,
-          'front'
+      // Send data to Kontigo API
+      const kontigoResponse = await this.externalApiService.sendCustomerToKontigo(kontigoData);
+      
+      this.logger.log('Customer created in Kontigo API:', kontigoResponse);
+      
+      // Verify that we have a valid customer ID from Kontigo
+      if (!kontigoResponse.id) {
+        throw new HttpException(
+          'Invalid response from Kontigo API: Missing customer ID',
+          HttpStatus.INTERNAL_SERVER_ERROR
         );
-        parsedDto.identityDocument.idDocFrontUrl = frontUrl;
-        delete parsedDto.identityDocument.idDocFrontFile;
       }
-
-      if (parsedDto.identityDocument?.idDocBackFile) {
-        const backUrl = await this.uploadFile(
-          parsedDto.identityDocument.idDocBackFile,
-          customerId,
-          'back'
-        );
-        parsedDto.identityDocument.idDocBackUrl = backUrl;
-        delete parsedDto.identityDocument.idDocBackFile;
-      }
-
-      // Save the customer data
-      await docRef.set(parsedDto);
-      return { id: customerId, ...parsedDto };
+      
+      // Store only essential data in Firestore
+      const customerData = {
+        kontigoCustomerId: kontigoResponse.id, 
+        telegram_id: createCustomerDto.telegram_id,
+        email: createCustomerDto.email,
+        legal_name: createCustomerDto.legal_name,
+        type: createCustomerDto.type,
+        phone_number: createCustomerDto.phone_number,
+        createdAt: new Date().toISOString()
+      };
+      
+      // Log the customer data before saving to Firestore
+      this.logger.log('Saving customer data to Firestore:', customerData);
+      
+      // Save to Firestore
+      const firestore = this.firebaseService.getFirestore();
+      const customerRef = await firestore.collection('customers').add(customerData);
+      
+      this.logger.log('Customer data stored in Firestore with ID:', customerRef.id);
+      this.logger.log('Stored Kontigo customer ID:', customerData.kontigoCustomerId);
+      
+      return {
+        id: customerRef.id,
+        ...customerData
+      };
     } catch (error) {
-      console.error('Create customer error:', error);
-      throw new BadRequestException('Failed to create customer. Please try again.');
+      this.logger.error('Error creating customer:', error);
+      throw error;
     }
   }
 
-  async findAll() {
+  async findByTelegramId(telegramId: string) {
     const firestore = this.firebaseService.getFirestore();
-    const snapshot = await firestore.collection(this.collection).get();
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  }
+    const snapshot = await firestore
+      .collection('customers')
+      .where('telegram_id', '==', telegramId)
+      .get();
 
-  async findOne(id: string) {
-    const firestore = this.firebaseService.getFirestore();
-    const doc = await firestore.collection(this.collection).doc(id).get();
-    if (!doc.exists) {
-      throw new NotFoundException(`Customer with ID ${id} not found`);
+    if (snapshot.empty) {
+      return null;
     }
+
+    const doc = snapshot.docs[0];
     return { id: doc.id, ...doc.data() };
   }
-
-  async update(id: string, updateCustomerDto: UpdateCustomerDto) {
-    const firestore = this.firebaseService.getFirestore();
-    const docRef = firestore.collection(this.collection).doc(id);
-    const doc = await docRef.get();
-    
-    if (!doc.exists) {
-      throw new NotFoundException(`Customer with ID ${id} not found`);
-    }
-
-    // Parse address and identityDocument if they're strings
-    const parsedDto = {
-      ...updateCustomerDto,
-      address: this.parseObjectIfString(updateCustomerDto.address),
-      identityDocument: this.parseObjectIfString(updateCustomerDto.identityDocument)
-    };
-
-    // Handle file uploads if they exist
-    if (parsedDto.identityDocument?.idDocFrontFile) {
-      const frontUrl = await this.uploadFile(
-        parsedDto.identityDocument.idDocFrontFile,
-        id,
-        'front'
-      );
-      parsedDto.identityDocument.idDocFrontUrl = frontUrl;
-      delete parsedDto.identityDocument.idDocFrontFile;
-    }
-
-    if (parsedDto.identityDocument?.idDocBackFile) {
-      const backUrl = await this.uploadFile(
-        parsedDto.identityDocument.idDocBackFile,
-        id,
-        'back'
-      );
-      parsedDto.identityDocument.idDocBackUrl = backUrl;
-      delete parsedDto.identityDocument.idDocBackFile;
-    }
-
-    await docRef.update(parsedDto);
-    return { id, ...parsedDto };
-  }
-
-  async remove(id: string) {
-    const firestore = this.firebaseService.getFirestore();
-    const docRef = firestore.collection(this.collection).doc(id);
-    const doc = await docRef.get();
-    
-    if (!doc.exists) {
-      throw new NotFoundException(`Customer with ID ${id} not found`);
-    }
-
-    // Delete associated files from storage
-    const storage = this.firebaseService.getStorage();
-    const bucketName = this.firebaseService.getBucketName();
-    const bucket = storage.bucket(bucketName);
-    
-    // Use the new folder structure: customers/{customerId}/
-    const [files] = await bucket.getFiles({ prefix: `customers/${id}/` });
-    await Promise.all(files.map(file => file.delete()));
-
-    await docRef.delete();
-    return { id };
-  }
-}
+} 

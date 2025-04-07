@@ -11,6 +11,8 @@ const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const firebase_module_1 = require("./firebase/firebase.module");
 const customers_module_1 = require("./customers/customers.module");
+const external_api_module_1 = require("./external-api/external-api.module");
+const bank_accounts_module_1 = require("./bank-accounts/bank-accounts.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -22,6 +24,8 @@ exports.AppModule = AppModule = __decorate([
             }),
             firebase_module_1.FirebaseModule,
             customers_module_1.CustomersModule,
+            external_api_module_1.ExternalApiModule,
+            bank_accounts_module_1.BankAccountsModule,
         ],
     })
 ], AppModule);
