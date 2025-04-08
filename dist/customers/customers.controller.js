@@ -36,8 +36,8 @@ let CustomersController = class CustomersController {
     getCustomerBankAccounts(customerId) {
         return this.bankAccountsService.findByCustomerId(customerId);
     }
-    getCustomerBankAccount(customerId, id) {
-        return this.bankAccountsService.findOne(id);
+    deleteBankAccount(customerId, id) {
+        return this.bankAccountsService.remove(id);
     }
 };
 exports.CustomersController = CustomersController;
@@ -84,16 +84,16 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], CustomersController.prototype, "getCustomerBankAccounts", null);
 __decorate([
-    (0, common_1.Get)(':customerId/bank-accounts/:id'),
-    (0, swagger_1.ApiOperation)({ summary: 'Get a specific bank account by ID for a customer' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'Return the bank account.' }),
+    (0, common_1.Delete)(':customerId/bank-accounts/:id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Delete a bank account' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'The bank account has been successfully deleted.' }),
     (0, swagger_1.ApiResponse)({ status: 404, description: 'Bank account not found.' }),
     __param(0, (0, common_1.Param)('customerId')),
     __param(1, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
-], CustomersController.prototype, "getCustomerBankAccount", null);
+], CustomersController.prototype, "deleteBankAccount", null);
 exports.CustomersController = CustomersController = __decorate([
     (0, swagger_1.ApiTags)('customers'),
     (0, common_1.Controller)('customers'),

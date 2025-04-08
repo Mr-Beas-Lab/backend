@@ -180,58 +180,6 @@ let ExternalApiService = ExternalApiService_1 = class ExternalApiService {
             }
         }
     }
-    async updateBankAccountInKontigo(bankAccountId, updateData) {
-        try {
-            this.logger.log(`Updating bank account ${bankAccountId} in Kontigo API...`);
-            if (!this.apiKey) {
-                throw new common_1.HttpException('Kontigo API key is not configured', common_1.HttpStatus.INTERNAL_SERVER_ERROR);
-            }
-            // Convert all values to strings
-            const stringifiedData = this.convertAllValuesToString(updateData);
-            this.logger.log('Sending update data to Kontigo API:', JSON.stringify(stringifiedData, null, 2));
-            // Get the customer ID from the bank account data in Firestore
-            // This is a workaround since we don't have the customer ID in the update data
-            // In a real implementation, you would need to pass the customer ID to this method
-            const customerId = updateData.customer_id;
-            if (!customerId) {
-                throw new common_1.HttpException('Customer ID is required to update a bank account', common_1.HttpStatus.BAD_REQUEST);
-            }
-            const response = await axios_1.default.patch(`${this.apiUrl}/customers/${customerId}/bank-accounts/${bankAccountId}`, stringifiedData, {
-                headers: {
-                    'accept': 'application/json',
-                    'content-type': 'application/json',
-                    'x-api-key': this.apiKey
-                }
-            });
-            this.logger.log('Successfully updated bank account in Kontigo API');
-            this.logger.log('Kontigo API response:', JSON.stringify(response.data, null, 2));
-            return response.data;
-        }
-        catch (error) {
-            this.logger.error('Error updating bank account in Kontigo API:', error.response?.data || error.message);
-            if (error.response) {
-                // The request was made and the server responded with a status code
-                // that falls out of the range of 2xx
-                const errorMessage = error.response.data?.message || 'Error from Kontigo API';
-                const errorDetails = error.response.data?.errors || error.response.data;
-                this.logger.error('Kontigo API error details:', errorDetails);
-                throw new common_1.HttpException({
-                    message: errorMessage,
-                    details: errorDetails
-                }, error.response.status || common_1.HttpStatus.INTERNAL_SERVER_ERROR);
-            }
-            else if (error.request) {
-                // The request was made but no response was received
-                this.logger.error('No response received from Kontigo API');
-                throw new common_1.HttpException('No response received from Kontigo API', common_1.HttpStatus.GATEWAY_TIMEOUT);
-            }
-            else {
-                // Something happened in setting up the request that triggered an Error
-                this.logger.error('Error setting up request to Kontigo API:', error.message);
-                throw new common_1.HttpException('Error setting up request to Kontigo API', common_1.HttpStatus.INTERNAL_SERVER_ERROR);
-            }
-        }
-    }
     async deleteBankAccountFromKontigo(bankAccountId, customerId) {
         try {
             this.logger.log(`Deleting bank account ${bankAccountId} from Kontigo API...`);

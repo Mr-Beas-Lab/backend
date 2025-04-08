@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Param } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, Delete } from '@nestjs/common';
 import { CustomersService } from './customers.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
@@ -49,14 +49,14 @@ export class CustomersController {
     return this.bankAccountsService.findByCustomerId(customerId);
   }
 
-  @Get(':customerId/bank-accounts/:id')
-  @ApiOperation({ summary: 'Get a specific bank account by ID for a customer' })
-  @ApiResponse({ status: 200, description: 'Return the bank account.' })
+  @Delete(':customerId/bank-accounts/:id')
+  @ApiOperation({ summary: 'Delete a bank account' })
+  @ApiResponse({ status: 200, description: 'The bank account has been successfully deleted.' })
   @ApiResponse({ status: 404, description: 'Bank account not found.' })
-  getCustomerBankAccount(
+  deleteBankAccount(
     @Param('customerId') customerId: string,
     @Param('id') id: string,
   ) {
-    return this.bankAccountsService.findOne(id);
+    return this.bankAccountsService.remove(id);
   }
 } 

@@ -13,6 +13,8 @@ const firebase_module_1 = require("./firebase/firebase.module");
 const customers_module_1 = require("./customers/customers.module");
 const external_api_module_1 = require("./external-api/external-api.module");
 const bank_accounts_module_1 = require("./bank-accounts/bank-accounts.module");
+const quotenest_service_1 = require("./generate/quotenest/quotenest.service");
+const quote_module_1 = require("./quote/quote.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -26,6 +28,8 @@ exports.AppModule = AppModule = __decorate([
             customers_module_1.CustomersModule,
             external_api_module_1.ExternalApiModule,
             bank_accounts_module_1.BankAccountsModule,
+            quote_module_1.QuoteModule,
         ],
+        providers: [quotenest_service_1.QuotenestService],
     })
 ], AppModule);

@@ -1,6 +1,5 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { CreateBankAccountDto } from './dto/create-bank-account.dto';
-import { UpdateBankAccountDto } from './dto/update-bank-account.dto';
 import { ExternalApiService } from '../external-api/external-api.service';
 import { FirebaseService } from '../firebase/firebase.service';
 
@@ -76,12 +75,22 @@ export class BankAccountsService {
       this.logger.log('Bank account data stored in Firestore with ID:', bankAccountRef.id);
       this.logger.log('Stored Kontigo bank account ID:', firestoreData.kontigoBankAccountId);
 
-      // Update customer document with bank account ID
-      const customerRef = firestore.collection('customers').doc(customerId);
-      await customerRef.update({
-        bankAccountId: kontigoResponse.id
-      });
-      this.logger.log('Updated customer document with bank account ID:', kontigoResponse.id);
+      // Find the customer document in Firestore using the Kontigo customer ID
+      const customerSnapshot = await firestore
+        .collection('customers')
+        .where('kontigoCustomerId', '==', customerId)
+        .get();
+      
+      if (!customerSnapshot.empty) {
+        const customerDoc = customerSnapshot.docs[0];
+        // Update customer document with bank account ID
+        await customerDoc.ref.update({
+          bankAccountId: kontigoResponse.id
+        });
+        this.logger.log('Updated customer document with bank account ID:', kontigoResponse.id);
+      } else {
+        this.logger.warn(`Customer with Kontigo ID ${customerId} not found in Firestore`);
+      }
       
       return {
         id: bankAccountRef.id,
@@ -89,75 +98,6 @@ export class BankAccountsService {
       };
     } catch (error) {
       this.logger.error('Error creating bank account:', error);
-      throw error;
-    }
-  }
-
-  async update(id: string, updateBankAccountDto: UpdateBankAccountDto) {
-    try {
-      this.logger.log(`Updating bank account with ID ${id} in Kontigo API...`);
-      
-      // Get the bank account from Firestore to get the Kontigo ID
-      const firestore = this.firebaseService.getFirestore();
-      const bankAccountDoc = await firestore.collection('bank_accounts').doc(id).get();
-      
-      if (!bankAccountDoc.exists) {
-        throw new HttpException('Bank account not found', HttpStatus.NOT_FOUND);
-      }
-      
-      const bankAccountData = bankAccountDoc.data();
-      if (!bankAccountData) {
-        throw new HttpException('Bank account data is empty', HttpStatus.INTERNAL_SERVER_ERROR);
-      }
-      
-      const kontigoBankAccountId = bankAccountData.kontigoBankAccountId;
-      const customerId = bankAccountData.customer_id;
-      
-      if (!customerId) {
-        throw new HttpException(
-          'Customer ID is missing from bank account data',
-          HttpStatus.INTERNAL_SERVER_ERROR
-        );
-      }
-      
-      // Add customer_id to the update data
-      const updateData = {
-        ...updateBankAccountDto,
-        customer_id: customerId
-      };
-      
-      // Send update data to Kontigo API
-      const kontigoResponse = await this.externalApiService.updateBankAccountInKontigo(
-        kontigoBankAccountId,
-        updateData
-      );
-      
-      this.logger.log('Bank account updated in Kontigo API:', kontigoResponse);
-      
-      // Update the bank account in Firestore
-      const updatedBankAccountData = {
-        ...bankAccountData,
-        ...updateBankAccountDto,
-        updatedAt: new Date().toISOString()
-      };
-      
-      // Remove undefined values
-      Object.keys(updatedBankAccountData).forEach((key: string) => {
-        if (updatedBankAccountData[key as keyof typeof updatedBankAccountData] === undefined) {
-          delete updatedBankAccountData[key as keyof typeof updatedBankAccountData];
-        }
-      });
-      
-      await firestore.collection('bank_accounts').doc(id).update(updatedBankAccountData);
-      
-      this.logger.log('Bank account updated in Firestore with ID:', id);
-      
-      return {
-        id,
-        ...updatedBankAccountData
-      };
-    } catch (error) {
-      this.logger.error('Error updating bank account:', error);
       throw error;
     }
   }
@@ -186,16 +126,9 @@ export class BankAccountsService {
         throw new HttpException('Bank account not found', HttpStatus.NOT_FOUND);
       }
       
-      const bankAccountData = doc.data();
-      if (!bankAccountData) {
-        throw new HttpException('Bank account data is empty', HttpStatus.INTERNAL_SERVER_ERROR);
-      }
-      
-      const kontigoBankAccountId = bankAccountData.kontigoBankAccountId;
-      
       return {
         id: doc.id,
-        ...bankAccountData
+        ...doc.data()
       };
     } catch (error) {
       this.logger.error('Error finding bank account:', error);
@@ -223,6 +156,8 @@ export class BankAccountsService {
 
   async remove(id: string) {
     try {
+      this.logger.log(`Deleting bank account with ID ${id}...`);
+      
       const firestore = this.firebaseService.getFirestore();
       const doc = await firestore.collection('bank_accounts').doc(id).get();
       
@@ -234,26 +169,28 @@ export class BankAccountsService {
       if (!bankAccountData) {
         throw new HttpException('Bank account data is empty', HttpStatus.INTERNAL_SERVER_ERROR);
       }
-      
+
       const kontigoBankAccountId = bankAccountData.kontigoBankAccountId;
       const customerId = bankAccountData.customer_id;
-      
+
       if (!customerId) {
         throw new HttpException(
           'Customer ID is missing from bank account data',
           HttpStatus.INTERNAL_SERVER_ERROR
         );
       }
-      
+
       // Delete from Kontigo API
       await this.externalApiService.deleteBankAccountFromKontigo(kontigoBankAccountId, customerId);
-      
+      this.logger.log('Bank account deleted from Kontigo API');
+
       // Delete from Firestore
       await firestore.collection('bank_accounts').doc(id).delete();
+      this.logger.log('Bank account deleted from Firestore');
       
       return { id, deleted: true };
     } catch (error) {
-      this.logger.error('Error removing bank account:', error);
+      this.logger.error('Error deleting bank account:', error);
       throw error;
     }
   }

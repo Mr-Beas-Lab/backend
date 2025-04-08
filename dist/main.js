@@ -20,6 +20,7 @@ async function bootstrap() {
         .setDescription('API for managing customer and bank accounts with Firebase integration')
         .setVersion('1.0')
         .addTag('customers')
+        .addTag('quotes')
         .build();
     const document = swagger_1.SwaggerModule.createDocument(app, config);
     swagger_1.SwaggerModule.setup('api', app, document);

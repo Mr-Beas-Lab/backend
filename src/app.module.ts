@@ -4,6 +4,8 @@ import { FirebaseModule } from './firebase/firebase.module';
 import { CustomersModule } from './customers/customers.module';
 import { ExternalApiModule } from './external-api/external-api.module';
 import { BankAccountsModule } from './bank-accounts/bank-accounts.module';
+ import { QuotenestService } from './generate/quotenest/quotenest.service';
+import { QuoteModule } from './quote/quote.module';
 
 @Module({
   imports: [
@@ -14,6 +16,8 @@ import { BankAccountsModule } from './bank-accounts/bank-accounts.module';
     CustomersModule,
     ExternalApiModule,
     BankAccountsModule,
+    QuoteModule,
   ],
+  providers: [ QuotenestService],
 })
 export class AppModule {}
