@@ -18,7 +18,6 @@ class CreateQuoteDto {
         this.sourceCurrency = ''; // default value
         this.destinationCurrency = ''; // default value
         this.destinationAccountId = ''; // default value
-        this.fees_paid_by = ''; // default value (optional)
     }
 }
 exports.CreateQuoteDto = CreateQuoteDto;
@@ -46,8 +45,3 @@ __decorate([
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], CreateQuoteDto.prototype, "destinationAccountId", void 0);
-__decorate([
-    (0, swagger_1.ApiProperty)({ description: 'Who will pay the fees for the transaction', required: false }),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateQuoteDto.prototype, "fees_paid_by", void 0);

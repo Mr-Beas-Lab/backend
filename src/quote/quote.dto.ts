@@ -22,15 +22,11 @@ export class CreateQuoteDto {
   @IsNotEmpty()
   destinationAccountId: string;
 
-  @ApiProperty({ description: 'Who will pay the fees for the transaction', required: false })
-  @IsString()
-  fees_paid_by?: string;
-
+ 
   constructor() {
     this.amount = 0; // default value
     this.sourceCurrency = ''; // default value
     this.destinationCurrency = ''; // default value
     this.destinationAccountId = ''; // default value
-    this.fees_paid_by = ''; // default value (optional)
-  }
+   }
 }

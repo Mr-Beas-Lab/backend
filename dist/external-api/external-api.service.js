@@ -224,6 +224,88 @@ let ExternalApiService = ExternalApiService_1 = class ExternalApiService {
             }
         }
     }
+    async createQuote(customerId, quoteData) {
+        try {
+            this.logger.log(`Creating quote for customer ${customerId} in Kontigo API...`);
+            if (!this.apiKey) {
+                throw new common_1.HttpException('Kontigo API key is not configured', common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+            // Add customerId to the quoteData
+            const dataWithCustomerId = {
+                ...quoteData,
+                customer_id: customerId,
+            };
+            this.logger.log('Sending data to Kontigo API:', JSON.stringify(dataWithCustomerId, null, 2));
+            const response = await axios_1.default.post(`${this.apiUrl}/transfers/quote`, dataWithCustomerId, {
+                headers: {
+                    accept: 'application/json',
+                    'content-type': 'application/json',
+                    'x-api-key': this.apiKey,
+                },
+            });
+            this.logger.log('Successfully created quote in Kontigo API');
+            this.logger.log('Kontigo API response:', JSON.stringify(response.data, null, 2));
+            return response.data;
+        }
+        catch (error) {
+            this.logger.error('Error creating quote in Kontigo API:', error.response?.data || error.message);
+            if (error.response) {
+                const errorMessage = error.response.data?.message || 'Error from Kontigo API';
+                const errorDetails = error.response.data?.errors || error.response.data;
+                this.logger.error('Kontigo API error details:', errorDetails);
+                throw new common_1.HttpException({
+                    message: errorMessage,
+                    details: errorDetails,
+                }, error.response.status || common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+            else if (error.request) {
+                this.logger.error('No response received from Kontigo API');
+                throw new common_1.HttpException('No response received from Kontigo API', common_1.HttpStatus.GATEWAY_TIMEOUT);
+            }
+            else {
+                this.logger.error('Error setting up request to Kontigo API:', error.message);
+                throw new common_1.HttpException('Error setting up request to Kontigo API', common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+        }
+    }
+    async payQuote(quoteId, paymentData) {
+        try {
+            this.logger.log(`Paying quote ${quoteId} in Kontigo API...`);
+            if (!this.apiKey) {
+                throw new common_1.HttpException('Kontigo API key is not configured', common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+            const response = await axios_1.default.post(`${this.apiUrl}/transfers/quote/${quoteId}/pay`, paymentData, {
+                headers: {
+                    accept: 'application/json',
+                    'content-type': 'application/json',
+                    'x-api-key': this.apiKey,
+                },
+            });
+            this.logger.log('Successfully paid quote in Kontigo API');
+            this.logger.log('Kontigo API response:', JSON.stringify(response.data, null, 2));
+            return response.data;
+        }
+        catch (error) {
+            this.logger.error('Error paying quote in Kontigo API:', error.response?.data || error.message);
+            if (error.response) {
+                const errorMessage = error.response.data?.message || 'Error from Kontigo API';
+                const errorDetails = error.response.data?.errors || error.response.data;
+                this.logger.error('Kontigo API error details:', errorDetails);
+                throw new common_1.HttpException({
+                    message: errorMessage,
+                    details: errorDetails,
+                }, error.response.status || common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+            else if (error.request) {
+                this.logger.error('No response received from Kontigo API');
+                throw new common_1.HttpException('No response received from Kontigo API', common_1.HttpStatus.GATEWAY_TIMEOUT);
+            }
+            else {
+                this.logger.error('Error setting up request to Kontigo API:', error.message);
+                throw new common_1.HttpException('Error setting up request to Kontigo API', common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+        }
+    }
 };
 exports.ExternalApiService = ExternalApiService;
 exports.ExternalApiService = ExternalApiService = ExternalApiService_1 = __decorate([

@@ -10,11 +10,13 @@ exports.QuoteModule = void 0;
 const common_1 = require("@nestjs/common");
 const quote_controller_1 = require("./quote.controller");
 const quote_service_1 = require("./quote.service");
+const external_api_module_1 = require("../external-api/external-api.module");
 let QuoteModule = class QuoteModule {
 };
 exports.QuoteModule = QuoteModule;
 exports.QuoteModule = QuoteModule = __decorate([
     (0, common_1.Module)({
+        imports: [external_api_module_1.ExternalApiModule],
         controllers: [quote_controller_1.QuoteController],
         providers: [quote_service_1.QuoteService],
     })

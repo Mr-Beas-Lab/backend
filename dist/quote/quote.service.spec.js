@@ -20,7 +20,6 @@ describe('QuoteService', () => {
             sourceCurrency: 'USDC',
             destinationCurrency: 'VES',
             destinationAccountId: 'destination_account',
-            fees_paid_by: 'customer',
         };
         const result = service.createQuote(customerId, createQuoteDto); // Pass customerId separately
         expect(result).toEqual({

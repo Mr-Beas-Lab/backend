@@ -1,33 +1,35 @@
 import { Injectable } from '@nestjs/common';
 import { CreateQuoteDto } from './quote.dto';
+import { ExternalApiService } from '../external-api/external-api.service';
 
 @Injectable()
 export class QuoteService {
-  createQuote(customerId: string, createQuoteDto: CreateQuoteDto) {
-    const { amount, sourceCurrency, destinationCurrency, destinationAccountId, fees_paid_by } = createQuoteDto;
+  constructor(private readonly externalApiService: ExternalApiService) {}
 
-    // Default values for missing properties
-    const source = {
-      currency: sourceCurrency || 'USDC', // Default to 'USDC' if not provided
-      account_id: 'ba_source123', // Example default source account ID
-    };
+  async createQuote(customerId: string, createQuoteDto: CreateQuoteDto) {
+    const { amount, sourceCurrency, destinationCurrency, destinationAccountId } = createQuoteDto;
 
-    const destination = {
-      currency: destinationCurrency || 'VES', // Default to 'VES' if not provided
-      account_id: destinationAccountId, // Must be provided
-      payment_rail: 'pagomovil', // Default payment rail
-    };
-
-    // Returning the generated quote
-    return {
-      message: 'Quote generated successfully',
-      data: {
-        amount,
-        customerId,
-        source,
-        destination,
-        fees_paid_by: fees_paid_by || 'source', // Default to 'source' if not provided
+    // Prepare the payload for the external API
+    const payload = {
+      amount,
+      customer_id: customerId,
+      source: {
+        payment_rail: 'prefunded_account',
+        currency: sourceCurrency || 'USDC',  
+        account_id: process.env.PRE_FUNDED_ACCOUNT_ID  
       },
+      destination: {
+        currency: destinationCurrency || 'VES', 
+        account_id: destinationAccountId,  
+        payment_rail: 'pagomovil',  
+      },
+      fees_paid_by: 'source',  
     };
+
+    // Call the external API to create the quote
+    const response = await this.externalApiService.createQuote(customerId, payload);
+    console.log('api response',response)
+    // Return the response from the external API
+    return response;
   }
 }
