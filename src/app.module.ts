@@ -6,6 +6,7 @@ import { ExternalApiModule } from './external-api/external-api.module';
 import { BankAccountsModule } from './bank-accounts/bank-accounts.module';
  import { QuotenestService } from './generate/quotenest/quotenest.service';
 import { QuoteModule } from './quote/quote.module';
+import { DmDepositDetailsModule } from './dm-deposit-details/dm-deposit-details.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { QuoteModule } from './quote/quote.module';
     ExternalApiModule,
     BankAccountsModule,
     QuoteModule,
+    DmDepositDetailsModule,
   ],
   providers: [ QuotenestService],
 })
