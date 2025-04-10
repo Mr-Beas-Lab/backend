@@ -21,6 +21,7 @@ let ExternalApiService = ExternalApiService_1 = class ExternalApiService {
         this.logger = new common_1.Logger(ExternalApiService_1.name);
         this.apiUrl = 'https://sandbox-api.kontigo.lat/v1';
         this.apiKey = process.env.KONTIGO_API_KEY;
+        this.organizationId = process.env.ORGANIZATION_ID;
         if (!this.apiKey) {
             this.logger.warn('KONTIGO_API_KEY environment variable is not set');
         }
@@ -224,6 +225,43 @@ let ExternalApiService = ExternalApiService_1 = class ExternalApiService {
             }
         }
     }
+    async getExchangeRate(sourceCurrency, destinationCurrency) {
+        try {
+            this.logger.log(`Fetching exchange rate from Kontigo API...`);
+            if (!this.apiKey) {
+                throw new common_1.HttpException('Kontigo API key is not configured', common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+            const response = await axios_1.default.get(`${this.apiUrl}/organizations/${this.organizationId}/exchange-rates?source_currency=${sourceCurrency}&destination_currency=${destinationCurrency}`, {
+                headers: {
+                    'accept': 'application/json',
+                    'x-api-key': this.apiKey
+                }
+            });
+            this.logger.log('Successfully fetched exchange rate from Kontigo API');
+            this.logger.log('Kontigo API response:', JSON.stringify(response.data, null, 2));
+            return response.data;
+        }
+        catch (error) {
+            this.logger.error('Error fetching exchange rate from Kontigo API:', error.response?.data || error.message);
+            if (error.response) {
+                const errorMessage = error.response.data?.message || 'Error from Kontigo API';
+                const errorDetails = error.response.data?.errors || error.response.data;
+                this.logger.error('Kontigo API error details:', errorDetails);
+                throw new common_1.HttpException({
+                    message: errorMessage,
+                    details: errorDetails
+                }, error.response.status || common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+            else if (error.request) {
+                this.logger.error('No response received from Kontigo API');
+                throw new common_1.HttpException('No response received from Kontigo API', common_1.HttpStatus.GATEWAY_TIMEOUT);
+            }
+            else {
+                this.logger.error('Error setting up request to Kontigo API:', error.message);
+                throw new common_1.HttpException('Error setting up request to Kontigo API', common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+        }
+    }
     async createQuote(customerId, quoteData) {
         try {
             this.logger.log(`Creating quote for customer ${customerId} in Kontigo API...`);
@@ -268,42 +306,38 @@ let ExternalApiService = ExternalApiService_1 = class ExternalApiService {
             }
         }
     }
-    async payQuote(quoteId, paymentData) {
+    async payQuote(quoteId, source) {
+        const prefunded_account_id = source.prefunded_account_id;
         try {
             this.logger.log(`Paying quote ${quoteId} in Kontigo API...`);
             if (!this.apiKey) {
                 throw new common_1.HttpException('Kontigo API key is not configured', common_1.HttpStatus.INTERNAL_SERVER_ERROR);
             }
-            const response = await axios_1.default.post(`${this.apiUrl}/transfers/quote/${quoteId}/pay`, paymentData, {
+            if (!prefunded_account_id) {
+                throw new common_1.HttpException('Prefunded account ID is required', common_1.HttpStatus.BAD_REQUEST);
+            }
+            const response = await axios_1.default.post(`${this.apiUrl}/transfers/quote/${quoteId}/pay`, {
+                source: {
+                    prefunded_account_id
+                }
+            }, {
                 headers: {
-                    accept: 'application/json',
-                    'content-type': 'application/json',
-                    'x-api-key': this.apiKey,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'x-api-key': this.apiKey, // Assuming this is required
                 },
             });
             this.logger.log('Successfully paid quote in Kontigo API');
-            this.logger.log('Kontigo API response:', JSON.stringify(response.data, null, 2));
             return response.data;
         }
         catch (error) {
-            this.logger.error('Error paying quote in Kontigo API:', error.response?.data || error.message);
+            this.logger.error('Error paying quote:', error.response?.data || error.message);
             if (error.response) {
-                const errorMessage = error.response.data?.message || 'Error from Kontigo API';
-                const errorDetails = error.response.data?.errors || error.response.data;
-                this.logger.error('Kontigo API error details:', errorDetails);
-                throw new common_1.HttpException({
-                    message: errorMessage,
-                    details: errorDetails,
-                }, error.response.status || common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+                throw new common_1.HttpException(error.response.data?.message || 'Payment failed', error.response.status, {
+                    description: JSON.stringify(error.response.data)
+                });
             }
-            else if (error.request) {
-                this.logger.error('No response received from Kontigo API');
-                throw new common_1.HttpException('No response received from Kontigo API', common_1.HttpStatus.GATEWAY_TIMEOUT);
-            }
-            else {
-                this.logger.error('Error setting up request to Kontigo API:', error.message);
-                throw new common_1.HttpException('Error setting up request to Kontigo API', common_1.HttpStatus.INTERNAL_SERVER_ERROR);
-            }
+            throw new common_1.HttpException('Failed to process payment', common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 };

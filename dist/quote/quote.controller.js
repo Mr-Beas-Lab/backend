@@ -24,6 +24,9 @@ let QuoteController = class QuoteController {
     async createQuote(customerId, createQuoteDto) {
         return this.quoteService.createQuote(customerId, createQuoteDto);
     }
+    async payQuote(customerId, quoteId, amount) {
+        return this.quoteService.payQuote(customerId, quoteId, amount);
+    }
 };
 exports.QuoteController = QuoteController;
 __decorate([
@@ -37,6 +40,37 @@ __decorate([
     __metadata("design:paramtypes", [String, quote_dto_1.CreateQuoteDto]),
     __metadata("design:returntype", Promise)
 ], QuoteController.prototype, "createQuote", null);
+__decorate([
+    (0, common_1.Post)(':customerId/:quoteId/pay/:amount'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Confirm and pay a quote',
+        description: 'Executes payment for a previously created quote.'
+    }),
+    (0, swagger_1.ApiParam)({ name: 'customerId', description: 'ID of the customer making the payment' }),
+    (0, swagger_1.ApiParam)({ name: 'quoteId', description: 'ID of the quote to pay' }),
+    (0, swagger_1.ApiResponse)({
+        status: common_1.HttpStatus.OK,
+        description: 'Payment processed successfully'
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: common_1.HttpStatus.BAD_REQUEST,
+        description: 'Invalid quote or payment data'
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: common_1.HttpStatus.NOT_FOUND,
+        description: 'Quote not found'
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: common_1.HttpStatus.INTERNAL_SERVER_ERROR,
+        description: 'Payment processing failed'
+    }),
+    __param(0, (0, common_1.Param)('customerId')),
+    __param(1, (0, common_1.Param)('quoteId')),
+    __param(2, (0, common_1.Param)('amount')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Number]),
+    __metadata("design:returntype", Promise)
+], QuoteController.prototype, "payQuote", null);
 exports.QuoteController = QuoteController = __decorate([
     (0, swagger_1.ApiTags)('quotes'),
     (0, common_1.Controller)('quote'),

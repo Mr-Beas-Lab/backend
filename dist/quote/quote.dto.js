@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CreateQuoteDto = void 0;
+exports.PayQuoteDto = exports.CreateQuoteDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
 const class_validator_1 = require("class-validator");
 class CreateQuoteDto {
@@ -23,7 +23,6 @@ class CreateQuoteDto {
 exports.CreateQuoteDto = CreateQuoteDto;
 __decorate([
     (0, swagger_1.ApiProperty)({ description: 'The amount for the quote' }),
-    (0, class_validator_1.IsNumber)(),
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", Number)
 ], CreateQuoteDto.prototype, "amount", void 0);
@@ -45,3 +44,17 @@ __decorate([
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], CreateQuoteDto.prototype, "destinationAccountId", void 0);
+class PayQuoteDto {
+    constructor() {
+        this.confirmationMethod = '';
+    }
+}
+exports.PayQuoteDto = PayQuoteDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: 'Payment confirmation method', example: 'otp' }),
+    __metadata("design:type", String)
+], PayQuoteDto.prototype, "confirmationMethod", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: 'Confirmation code', required: false }),
+    __metadata("design:type", String)
+], PayQuoteDto.prototype, "confirmationCode", void 0);

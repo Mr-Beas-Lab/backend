@@ -6,6 +6,7 @@ export class ExternalApiService {
   private readonly logger = new Logger(ExternalApiService.name);
   private readonly apiUrl = 'https://sandbox-api.kontigo.lat/v1';
   private readonly apiKey = process.env.KONTIGO_API_KEY;
+  private readonly organizationId = process.env.ORGANIZATION_ID;
 
   constructor() {
     if (!this.apiKey) {
@@ -300,6 +301,61 @@ export class ExternalApiService {
     }
   }
 
+  async getExchangeRate(sourceCurrency: string, destinationCurrency: string) {
+    try {
+      this.logger.log(`Fetching exchange rate from Kontigo API...`);
+      
+      if (!this.apiKey) {
+        throw new HttpException('Kontigo API key is not configured', HttpStatus.INTERNAL_SERVER_ERROR);
+      }
+      
+      const response = await axios.get(
+        `${this.apiUrl}/organizations/${this.organizationId}/exchange-rates?source_currency=${sourceCurrency}&destination_currency=${destinationCurrency}`,
+        {
+          headers: {
+            'accept': 'application/json',
+            'x-api-key': this.apiKey
+          }
+        }
+      );
+
+      this.logger.log('Successfully fetched exchange rate from Kontigo API');
+      this.logger.log('Kontigo API response:', JSON.stringify(response.data, null, 2));
+      
+      return response.data;
+    } catch (error: any) {
+      this.logger.error('Error fetching exchange rate from Kontigo API:', error.response?.data || error.message);
+      
+      if (error.response) {
+        const errorMessage = error.response.data?.message || 'Error from Kontigo API';
+        const errorDetails = error.response.data?.errors || error.response.data;
+        
+        this.logger.error('Kontigo API error details:', errorDetails);
+        
+        throw new HttpException(
+          {
+            message: errorMessage,
+            details: errorDetails
+          },
+          error.response.status || HttpStatus.INTERNAL_SERVER_ERROR
+        );
+      } else if (error.request) {
+        this.logger.error('No response received from Kontigo API');
+        
+        throw new HttpException(
+          'No response received from Kontigo API',
+          HttpStatus.GATEWAY_TIMEOUT
+        );
+      } else {
+        this.logger.error('Error setting up request to Kontigo API:', error.message);
+        
+        throw new HttpException(
+          'Error setting up request to Kontigo API',
+          HttpStatus.INTERNAL_SERVER_ERROR
+        );
+      }
+    }
+  }
   async createQuote(customerId: string, quoteData: any) {
     try {
       this.logger.log(`Creating quote for customer ${customerId} in Kontigo API...`);
@@ -366,61 +422,56 @@ export class ExternalApiService {
       }
     }
   }
-  async payQuote(quoteId: string, paymentData: any) {
+  async payQuote(quoteId: string, source: any) {
+    const prefunded_account_id = source.prefunded_account_id;
+    
     try {
       this.logger.log(`Paying quote ${quoteId} in Kontigo API...`);
-
+      
       if (!this.apiKey) {
         throw new HttpException('Kontigo API key is not configured', HttpStatus.INTERNAL_SERVER_ERROR);
       }
 
+      if (!prefunded_account_id) {
+        throw new HttpException('Prefunded account ID is required', HttpStatus.BAD_REQUEST);
+      }
+
       const response = await axios.post(
         `${this.apiUrl}/transfers/quote/${quoteId}/pay`,
-        paymentData,
+        {
+          source: {
+            prefunded_account_id
+          }
+        },
         {
           headers: {
-            accept: 'application/json',
-            'content-type': 'application/json',
-            'x-api-key': this.apiKey,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'x-api-key': this.apiKey, // Assuming this is required
           },
-        },
+        }
       );
 
       this.logger.log('Successfully paid quote in Kontigo API');
-      this.logger.log('Kontigo API response:', JSON.stringify(response.data, null, 2));
-
       return response.data;
+      
     } catch (error: any) {
-      this.logger.error('Error paying quote in Kontigo API:', error.response?.data || error.message);
-
+      this.logger.error('Error paying quote:', error.response?.data || error.message);
+      
       if (error.response) {
-        const errorMessage = error.response.data?.message || 'Error from Kontigo API';
-        const errorDetails = error.response.data?.errors || error.response.data;
-
-        this.logger.error('Kontigo API error details:', errorDetails);
-
         throw new HttpException(
+          error.response.data?.message || 'Payment failed',
+          error.response.status,
           {
-            message: errorMessage,
-            details: errorDetails,
-          },
-          error.response.status || HttpStatus.INTERNAL_SERVER_ERROR,
-        );
-      } else if (error.request) {
-        this.logger.error('No response received from Kontigo API');
-
-        throw new HttpException(
-          'No response received from Kontigo API',
-          HttpStatus.GATEWAY_TIMEOUT,
-        );
-      } else {
-        this.logger.error('Error setting up request to Kontigo API:', error.message);
-
-        throw new HttpException(
-          'Error setting up request to Kontigo API',
-          HttpStatus.INTERNAL_SERVER_ERROR,
+            description: JSON.stringify(error.response.data)
+          }
         );
       }
+      
+      throw new HttpException(
+        'Failed to process payment',
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
     }
-  }
+}
 } 

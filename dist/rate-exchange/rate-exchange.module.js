@@ -6,19 +6,17 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.QuoteModule = void 0;
+exports.RateExchangeModule = void 0;
 const common_1 = require("@nestjs/common");
-const quote_controller_1 = require("./quote.controller");
-const quote_service_1 = require("./quote.service");
-const external_api_module_1 = require("../external-api/external-api.module");
-const firebase_module_1 = require("../firebase/firebase.module");
-let QuoteModule = class QuoteModule {
+const rate_exchange_controller_1 = require("./rate-exchange.controller");
+const external_api_service_1 = require("../external-api/external-api.service");
+const rate_exchange_service_1 = require("./rate-exchange.service");
+let RateExchangeModule = class RateExchangeModule {
 };
-exports.QuoteModule = QuoteModule;
-exports.QuoteModule = QuoteModule = __decorate([
+exports.RateExchangeModule = RateExchangeModule;
+exports.RateExchangeModule = RateExchangeModule = __decorate([
     (0, common_1.Module)({
-        imports: [firebase_module_1.FirebaseModule, external_api_module_1.ExternalApiModule],
-        controllers: [quote_controller_1.QuoteController],
-        providers: [quote_service_1.QuoteService],
+        controllers: [rate_exchange_controller_1.RateExchangeController],
+        providers: [rate_exchange_service_1.ExchangeRateService, external_api_service_1.ExternalApiService]
     })
-], QuoteModule);
+], RateExchangeModule);

@@ -16,6 +16,7 @@ const bank_accounts_module_1 = require("./bank-accounts/bank-accounts.module");
 const quotenest_service_1 = require("./generate/quotenest/quotenest.service");
 const quote_module_1 = require("./quote/quote.module");
 const dm_deposit_details_module_1 = require("./dm-deposit-details/dm-deposit-details.module");
+const rate_exchange_module_1 = require("./rate-exchange/rate-exchange.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -31,6 +32,7 @@ exports.AppModule = AppModule = __decorate([
             bank_accounts_module_1.BankAccountsModule,
             quote_module_1.QuoteModule,
             dm_deposit_details_module_1.DmDepositDetailsModule,
+            rate_exchange_module_1.RateExchangeModule,
         ],
         providers: [quotenest_service_1.QuotenestService],
     })

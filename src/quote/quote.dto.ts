@@ -1,9 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsNumber } from 'class-validator';
+import { IsString, IsNotEmpty, IsInt } from 'class-validator';
+
 
 export class CreateQuoteDto {
   @ApiProperty({ description: 'The amount for the quote' })
-  @IsNumber()
   @IsNotEmpty()
   amount: number;
 
@@ -29,4 +29,16 @@ export class CreateQuoteDto {
     this.destinationCurrency = ''; // default value
     this.destinationAccountId = ''; // default value
    }
+}
+
+export class PayQuoteDto {
+  @ApiProperty({ description: 'Payment confirmation method', example: 'otp' })
+  confirmationMethod: string;
+
+  @ApiProperty({ description: 'Confirmation code', required: false })
+  confirmationCode?: string;
+  constructor() {
+    this.confirmationMethod = ''; 
+   }
+
 }
