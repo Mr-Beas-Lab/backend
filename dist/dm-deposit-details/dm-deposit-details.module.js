@@ -8,6 +8,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DmDepositDetailsModule = void 0;
 const common_1 = require("@nestjs/common");
+const axios_1 = require("@nestjs/axios");
+const config_1 = require("@nestjs/config");
 const dm_deposit_details_service_1 = require("./dm-deposit-details.service");
 const dm_deposit_details_controller_1 = require("./dm-deposit-details.controller");
 let DmDepositDetailsModule = class DmDepositDetailsModule {
@@ -15,6 +17,10 @@ let DmDepositDetailsModule = class DmDepositDetailsModule {
 exports.DmDepositDetailsModule = DmDepositDetailsModule;
 exports.DmDepositDetailsModule = DmDepositDetailsModule = __decorate([
     (0, common_1.Module)({
+        imports: [
+            axios_1.HttpModule,
+            config_1.ConfigModule
+        ],
         providers: [dm_deposit_details_service_1.DmDepositDetailsService],
         controllers: [dm_deposit_details_controller_1.DmDepositDetailsController]
     })
