@@ -24,34 +24,29 @@ jobs:
         run: |
           docker build -t $DOCKERHUB_REPO:latest .
           docker push $DOCKERHUB_REPO:latest
-          docker save $DOCKERHUB_REPO:latest -o image.tar
-
-      - name: Upload image artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-image
-          path: image.tar
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Download image artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: docker-image
-          path: image.tar
-
-      - name: Deploy to Server
+      - name: SSH to the server and deploy
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
           script: |
+            # Go to the project directory
             cd ~/remi_backend
-            docker load -i image.tar
+            
+            # Pull the latest image from Docker Hub
+            docker pull $DOCKERHUB_REPO:latest
+            
+            # Bring down the previous container (if any)
             docker-compose down || true
+            
+            # Start the new container with the latest image
             docker-compose up -d
-            rm -f image.tar
+            
+            # Clean up unused Docker images (optional)
             docker image prune -f
