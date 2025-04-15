@@ -4,10 +4,13 @@ on:
   push:
     branches: [ main ]
 
+env:
+  DOCKERHUB_REPO: millionmulugeta/remi_server 
+  COMPOSE_PROJECT_NAME: remi_backend
+
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v4
 
@@ -19,32 +22,65 @@ jobs:
 
     - name: Build and push
       run: |
-        docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/remi-server:latest .
-        docker push ${{ secrets.DOCKERHUB_USERNAME }}/remi-server:latest
+        # Single consistent naming now
+        docker build -t $DOCKERHUB_REPO:latest .
+        docker push $DOCKERHUB_REPO:latest
+
+    - name: Save local image
+      run: docker save $DOCKERHUB_REPO:latest -o remi_server.tar
+      
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: docker-image
+        path: remi_server.tar
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+    - name: Download image
+      uses: actions/download-artifact@v3
+      with:
+        name: docker-image
 
-    - name: Deploy to DigitalOcean
+    - name: Deploy to Server
       uses: appleboy/ssh-action@master
       with:
         host: ${{ secrets.SERVER_IP }}
         username: ${{ secrets.SERVER_USER }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
-          # Pull the new image
-          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/remi-server:latest
+          cd ~/remi_backend
           
-          # Stop and remove old containers
-          docker compose down || true
+          # Update compose file to use new image name
+          cat > docker-compose.yml << 'EOL'
+          version: '3.8'
+          services:
+            remi_server:
+              image: millionmulugeta/remi_server:latest
+              env_file: .env
+              environment:
+                NODE_ENV: production
+              ports:
+                - '3000:3000'
+                - '9229:9229'
+              healthcheck:
+                test: ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]
+                interval: 30s
+                timeout: 10s
+                retries: 3
+              restart: unless-stopped
+              user: "node"
+              volumes:
+                - /usr/src/app/node_modules
+          EOL
           
-          # Update the image used in compose
-          docker tag ${{ secrets.DOCKERHUB_USERNAME }}/remi-server:latest remi_server:latest
+          # Load and deploy
+          docker load -i remi_server.tar
+          docker-compose down || true
+          docker-compose up -d
           
-          # Bring up new containers
-          docker compose up -d
+          # Cleanup
+          rm remi_server.tar
+          docker image prune -f
