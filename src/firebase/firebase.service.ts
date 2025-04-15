@@ -1,72 +1,59 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as admin from 'firebase-admin';
-import * as serviceAccount from '../../firebase-service-account.json';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class FirebaseService {
   private readonly firestore: admin.firestore.Firestore;
-  private readonly storage: admin.storage.Storage;
   private readonly logger = new Logger(FirebaseService.name);
-  private readonly defaultBucketName = 'mrjohn-8ee8b.firebasestorage.app';
 
-  constructor() {
+  constructor(private configService: ConfigService) {
     this.logger.log('Initializing Firebase Service...');
-    this.logger.log(`Default bucket name: ${this.defaultBucketName}`);
+
+    // Validate Firebase configuration
+    const projectId = this.configService.get<string>('FIREBASE_PROJECT_ID') || process.env.FIREBASE_PROJECT_ID;
+    const clientEmail = this.configService.get<string>('FIREBASE_CLIENT_EMAIL') || process.env.FIREBASE_CLIENT_EMAIL;
+    const privateKey = this.configService.get<string>('FIREBASE_PRIVATE_KEY') || process.env.FIREBASE_PRIVATE_KEY;
+    
+    if (!projectId || !clientEmail || !privateKey) {
+      throw new Error(
+        'Missing Firebase configuration. Please check your environment variables: ' +
+        'FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY'
+      );
+    }
 
     // Initialize Firebase Admin SDK
     if (!admin.apps.length) {
       this.logger.log('No Firebase apps found, initializing new app...');
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
-        storageBucket: this.defaultBucketName,
-      });
-      this.logger.log('Firebase app initialized with bucket:', admin.app().options.storageBucket);
+      
+      const firebaseConfig = {
+        projectId,
+        clientEmail,
+        privateKey: privateKey.replace(/\\n/g, '\n'),
+      };
+
+      try {
+        admin.initializeApp({
+          credential: admin.credential.cert(firebaseConfig)
+        });
+        this.logger.log('Firebase app initialized successfully');
+      } catch (error) {
+        this.logger.error('Failed to initialize Firebase app:', error);
+        throw error;
+      }
     } else {
-      this.logger.log('Using existing Firebase app with bucket:', admin.app().options.storageBucket);
-      // Force update the bucket name
-      admin.app().options.storageBucket = this.defaultBucketName;
-      this.logger.log('Updated bucket name to:', admin.app().options.storageBucket);
+      this.logger.log('Using existing Firebase app');
     }
 
     this.firestore = admin.firestore();
-    this.storage = admin.storage();
-    
-    // Ensure bucket exists and log the bucket name being used
-    this.ensureBucketExists();
-  }
-
-  private async ensureBucketExists() {
-    try {
-      const bucket = this.storage.bucket(this.defaultBucketName);
-      this.logger.log(`Checking if bucket ${this.defaultBucketName} exists...`);
-      const [exists] = await bucket.exists();
-      
-      if (!exists) {
-        this.logger.warn(`Bucket ${this.defaultBucketName} does not exist.`);
-        this.logger.warn('Please create it in the Firebase Console:');
-        this.logger.warn(`https://console.firebase.google.com/project/${serviceAccount.project_id}/storage`);
-      } else {
-        this.logger.log(`Bucket ${this.defaultBucketName} exists and is accessible.`);
-      }
-    } catch (error: any) {
-      this.logger.error(`Error checking bucket: ${error.message}`);
-      throw error;
-    }
+  
   }
 
   getFirestore(): admin.firestore.Firestore {
     return this.firestore;
   }
 
-  getStorage(): admin.storage.Storage {
-    return this.storage;
-  }
-
-  getBucketName(): string {
-    // Always return the default bucket name
-    return this.defaultBucketName;
-  }
-
+  // Your existing CRUD operations remain exactly the same
   async createCustomer(customerData: any): Promise<any> {
     const customerRef = this.firestore.collection('customers').doc();
     await customerRef.set(customerData);

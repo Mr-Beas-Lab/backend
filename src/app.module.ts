@@ -8,6 +8,7 @@ import { BankAccountsModule } from './bank-accounts/bank-accounts.module';
 import { QuoteModule } from './quote/quote.module';
 import { DmDepositDetailsModule } from './dm-deposit-details/dm-deposit-details.module';
 import { RateExchangeModule } from './rate-exchange/rate-exchange.module';
+import { HealthController } from './health/health.controller';
 
 @Module({
   imports: [
@@ -23,5 +24,6 @@ import { RateExchangeModule } from './rate-exchange/rate-exchange.module';
     RateExchangeModule,
   ],
   providers: [ QuotenestService],
+  controllers: [HealthController],
 })
 export class AppModule {}

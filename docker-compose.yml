@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  remi_server:
+    build:
+      context: .
+      target: production 
+      dockerfile: ./Dockerfile
+    image: remi_server:latest
+    env_file: .env
+    environment:
+      NODE_ENV: production
+    ports:
+      - '3000:3000'
+      - '9229:9229'  # Debug port (optional)
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    # Security best practice:
+    user: "node"
+    volumes:
+      - /usr/src/app/node_modules 
+
+networks:
+  default:
+    driver: bridge

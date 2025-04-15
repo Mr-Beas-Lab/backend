@@ -1,0 +1,6 @@
+{
+    "generateOptions": {
+      "spec": false,
+      "skipImport": true 
+    }
+  }

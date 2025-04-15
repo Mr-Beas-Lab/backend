@@ -10,10 +10,10 @@
     "emitDecoratorMetadata": true,
     "resolveJsonModule": true,
     "outDir": "./dist",
-    "rootDir": "./src",
-    "baseUrl": "./src",
+    "rootDir": "./",
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["*"]
+      "*": ["./*"]
     }
   },
   "include": ["src/**/*.ts"],

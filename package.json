@@ -2,10 +2,13 @@
   "name": "nest-backend",
   "version": "1.0.0",
   "description": "A NestJS backend for managing customer accounts with Firebase integration.",
-  "main": "dist/main.js",
+  "main": "dist/src/main.js",
   "scripts": {
-    "start": "node dist/main.js",
-    "build": "tsc",
+    "build": "nest build",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main.js",
     "watch": "tsc -w",
     "prestart": "npm run build"
   },
