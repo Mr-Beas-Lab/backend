@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { QuoteController } from './quote.controller';
 import { QuoteService } from './quote.service';
-import { ExternalApiModule } from '@/external-api/external-api.module';
-import { FirebaseModule } from '@/firebase/firebase.module';
+import { FirebaseModule } from 'src/firebase/firebase.module';
+import { ExternalApiModule } from 'src/external-api/external-api.module';
 
 @Module({
   imports: [FirebaseModule,ExternalApiModule],

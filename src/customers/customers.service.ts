@@ -1,7 +1,7 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
-import { FirebaseService } from '../firebase/firebase.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
-import { ExternalApiService } from '../external-api/external-api.service';
+import { FirebaseService } from 'src/firebase/firebase.service';
+import { ExternalApiService } from 'src/external-api/external-api.service';
 
 @Injectable()
 export class CustomersService {
