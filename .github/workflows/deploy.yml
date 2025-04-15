@@ -2,85 +2,55 @@ name: Build and Deploy
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
 
 env:
-  DOCKERHUB_REPO: millionmulugeta/remi_server 
+  DOCKERHUB_REPO: millionmulugeta/remi_server
   COMPOSE_PROJECT_NAME: remi_backend
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Login to Docker Hub
-      uses: docker/login-action@v2
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-    - name: Build and push
-      run: |
-        # Single consistent naming now
-        docker build -t $DOCKERHUB_REPO:latest .
-        docker push $DOCKERHUB_REPO:latest
+      - name: Build and push image
+        run: |
+          docker build -t $DOCKERHUB_REPO:latest .
+          docker push $DOCKERHUB_REPO:latest
+          docker save $DOCKERHUB_REPO:latest -o image.tar
 
-    - name: Save local image
-      run: docker save $DOCKERHUB_REPO:latest -o remi_server.tar
-      
-    - name: Upload artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: docker-image
-        path: remi_server.tar
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: docker-image
+          path: image.tar
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
     steps:
-    - name: Download image
-      uses: actions/download-artifact@v3
-      with:
-        name: docker-image
+      - name: Download image artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: docker-image
 
-    - name: Deploy to Server
-      uses: appleboy/ssh-action@master
-      with:
-        host: ${{ secrets.SERVER_IP }}
-        username: ${{ secrets.SERVER_USER }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        script: |
-          cd ~/remi_backend
-          
-          # Update compose file to use new image name
-          cat > docker-compose.yml << 'EOL'
-          version: '3.8'
-          services:
-            remi_server:
-              image: millionmulugeta/remi_server:latest
-              env_file: .env
-              environment:
-                NODE_ENV: production
-              ports:
-                - '3000:3000'
-                - '9229:9229'
-              healthcheck:
-                test: ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]
-                interval: 30s
-                timeout: 10s
-                retries: 3
-              restart: unless-stopped
-              user: "node"
-              volumes:
-                - /usr/src/app/node_modules
-          EOL
-          
-          # Load and deploy
-          docker load -i remi_server.tar
-          docker-compose down || true
-          docker-compose up -d
-          
-          # Cleanup
-          rm remi_server.tar
-          docker image prune -f
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/remi_backend
+            docker load -i image.tar
+            docker-compose down || true
+            docker-compose up -d
+            rm image.tar
+            docker image prune -f
