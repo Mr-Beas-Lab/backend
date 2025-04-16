@@ -38,6 +38,10 @@ services:
       - /usr/share/nginx/html
       - /var/run/docker.sock:/tmp/docker.sock:ro
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: 30s
+      retries: 5
     networks:
       - default
 
@@ -46,6 +50,7 @@ services:
     container_name: nginx-letsencrypt
     environment:
       - DEFAULT_EMAIL=millionmulugeta09@gmail.com
+      - NGINX_PROXY_CONTAINER=nginx-proxy
     volumes:
       - /etc/nginx/certs
       - /etc/nginx/vhost.d
