@@ -1,4 +1,4 @@
-name: Build and Deploy with Nginx
+name: Build and Deploy
 
 on:
   push:
@@ -7,7 +7,6 @@ on:
 env:
   DOCKERHUB_REPO: millionmulugeta/remi_server
   COMPOSE_PROJECT_NAME: remi_backend
-  DOMAIN: yourdomain.com  # Change to your domain or IP
 
 jobs:
   build:
@@ -37,105 +36,17 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
           script: |
-            # Create project directory if not exists
-            mkdir -p ~/remi_backend
+            # Go to the project directory
             cd ~/remi_backend
             
-            # Create docker-compose.yml if not exists
-            if [ ! -f docker-compose.yml ]; then
-            cat << 'EOF' > docker-compose.yml
-            version: '3.8'
+            # Pull the latest image from Docker Hub
+            docker pull $DOCKERHUB_REPO:latest
             
-            services:
-              app:
-                image: $DOCKERHUB_REPO:latest
-                restart: always
-                ports:
-                  - "3000:3000"
-                environment:
-                  - NODE_ENV=production
+            # Bring down the previous container (if any)
+            docker-compose down || true
             
-              nginx:
-                image: nginx:alpine
-                restart: always
-                ports:
-                  - "80:80"
-                  - "443:443"
-                volumes:
-                  - ./nginx.conf:/etc/nginx/nginx.conf
-                  - ./ssl:/etc/ssl
-                depends_on:
-                  - app
-            EOF
-            fi
-            
-            # Create nginx.conf if not exists
-            if [ ! -f nginx.conf ]; then
-            cat << 'EOF' > nginx.conf
-            events {
-                worker_connections 1024;
-            }
-            
-            http {
-                server {
-                    listen 80;
-                    server_name $DOMAIN;
-                    
-                    location /health {
-                        proxy_pass http://app:3000/health;
-                        access_log off;
-                    }
-                    
-                    location / {
-                        return 301 https://$host$request_uri;
-                    }
-                }
-            
-                server {
-                    listen 443 ssl;
-                    server_name $DOMAIN;
-                    
-                    ssl_certificate /etc/ssl/certs/selfsigned.crt;
-                    ssl_certificate_key /etc/ssl/private/selfsigned.key;
-                    
-                    ssl_protocols TLSv1.2 TLSv1.3;
-                    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256;
-                    ssl_prefer_server_ciphers on;
-            
-                    location / {
-                        proxy_pass http://app:3000;
-                        proxy_set_header Host $host;
-                        proxy_set_header X-Real-IP $remote_addr;
-                    }
-                }
-            }
-            EOF
-            fi
-            
-            # Create SSL directory if not exists
-            mkdir -p ~/remi_backend/ssl/{private,certs}
-            
-            # Generate self-signed cert if not exists
-            if [ ! -f ~/remi_backend/ssl/certs/selfsigned.crt ]; then
-              openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-                -keyout ~/remi_backend/ssl/private/selfsigned.key \
-                -out ~/remi_backend/ssl/certs/selfsigned.crt \
-                -subj "/CN=$DOMAIN" \
-                -addext "subjectAltName=DNS:$DOMAIN"
-            fi
-            
-            # Pull the latest images
-            docker-compose pull
-            
-            # Deploy the stack
+            # Start the new container with the latest image
             docker-compose up -d
             
-            # Wait for services to start
-            sleep 10
-            
-            # Verify deployment
-            curl -f http://$DOMAIN/health || exit 1
-            curl -k -f https://$DOMAIN/health || exit 1
-            
-            # Clean up unused images
+            # Clean up unused Docker images (optional)
             docker image prune -f
