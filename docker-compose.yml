@@ -35,14 +35,15 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - /etc/nginx/certs
-      - /etc/nginx/vhost.d
-      - /usr/share/nginx/html
+      - certs:/etc/nginx/certs:rw
+      - vhost:/etc/nginx/vhost.d
+      - html:/usr/share/nginx/html
       - /var/run/docker.sock:/tmp/docker.sock:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost"]
       interval: 30s
+      timeout: 10s
       retries: 5
     networks:
       - default
@@ -54,15 +55,20 @@ services:
       DEFAULT_EMAIL: millionmulugeta09@gmail.com
       NGINX_PROXY_CONTAINER: nginx-proxy
     volumes:
-      - /etc/nginx/certs
-      - /etc/nginx/vhost.d
-      - /usr/share/nginx/html
+      - certs:/etc/nginx/certs:rw
+      - vhost:/etc/nginx/vhost.d
+      - html:/usr/share/nginx/html
       - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       - nginx-proxy
     restart: unless-stopped
     networks:
       - default
+
+volumes:
+  certs:
+  vhost:
+  html:
 
 networks:
   default:
