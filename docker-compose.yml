@@ -9,13 +9,14 @@ services:
     env_file: .env
     environment:
       NODE_ENV: production
+      PORT: 80
       VIRTUAL_HOST: backend.mrbeas.net
       LETSENCRYPT_HOST: backend.mrbeas.net
       LETSENCRYPT_EMAIL: millionmulugeta09@gmail.com
     expose:
-      - "3000"
+      - "80"
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -23,6 +24,7 @@ services:
     user: "node"
     volumes:
       - /usr/src/app/node_modules
+      - /usr/share/nginx/html
     networks:
       - default
 
@@ -49,8 +51,8 @@ services:
     image: nginxproxy/acme-companion
     container_name: nginx-letsencrypt
     environment:
-      - DEFAULT_EMAIL=millionmulugeta09@gmail.com
-      - NGINX_PROXY_CONTAINER=nginx-proxy
+      DEFAULT_EMAIL: millionmulugeta09@gmail.com
+      NGINX_PROXY_CONTAINER: nginx-proxy
     volumes:
       - /etc/nginx/certs
       - /etc/nginx/vhost.d

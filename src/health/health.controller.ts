@@ -6,6 +6,6 @@ export class HealthController {
   checkHealth() {
 
 
-    return { status: 'ok' , timestamp: new Date().toISOString() };
+    return { status: 'ok' };
   }
 }
