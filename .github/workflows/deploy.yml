@@ -27,7 +27,7 @@ jobs:
           echo "Using tag: $TAG"
           
           # Build the Docker image
-          docker build -t $DOCKERHUB_REPO:$TAG .  # Build with version tag
+          docker build -t $DOCKERHUB_REPO:$TAG ./remi_Backend  # Build with version tag from remi_Backend directory
           
           # Push the image with the version tag
           docker push $DOCKERHUB_REPO:$TAG
@@ -52,6 +52,7 @@ jobs:
             # Ensure the directory structure exists
             mkdir -p ~/mrbeas/remi_Backend
             
+            # Navigate to the directory where docker-compose.yml is located (~/mrbeas)
             cd ~/mrbeas
 
             # Ensure docker-compose.yml exists in the correct directory
