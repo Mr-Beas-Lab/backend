@@ -52,8 +52,7 @@ jobs:
             # Ensure the directory structure exists
             mkdir -p ~/mrbeas/remi_Backend
             
-            # Navigate to the remi_Backend directory where the docker-compose.yml file is located
-            cd ~/mrbeas/remi_Backend
+            cd ~/mrbeas
 
             # Ensure docker-compose.yml exists in the correct directory
             if [ ! -f "docker-compose.yml" ]; then
