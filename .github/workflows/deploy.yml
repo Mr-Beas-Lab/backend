@@ -20,9 +20,21 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push image
+      - name: Build and push image with version tag
         run: |
-          docker build -t $DOCKERHUB_REPO:latest .
+          # Create a versioned tag based on the build number
+          TAG=1.0.${{ github.run_number }}
+          
+          # Build the image with the version tag
+          docker build -t $DOCKERHUB_REPO:$TAG ./remi_Backend
+          
+          # Push the versioned image to Docker Hub
+          docker push $DOCKERHUB_REPO:$TAG
+          
+          # Tag the image as 'latest'
+          docker tag $DOCKERHUB_REPO:$TAG $DOCKERHUB_REPO:latest
+          
+          # Push the 'latest' image to Docker Hub
           docker push $DOCKERHUB_REPO:latest
 
   deploy:
@@ -34,18 +46,20 @@ jobs:
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
-          password: ${{ secrets.SERVER_PASSWORD }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             # Go to the project directory on the server
             cd ~/remi_backend
             
-            # Pull the latest image from Docker Hub
+            # Pull the latest image from Docker Hub (latest tag or versioned tag)
+            TAG=1.0.${{ github.run_number }}
+            docker pull $DOCKERHUB_REPO:$TAG
             docker pull $DOCKERHUB_REPO:latest
             
-            # Bring down the previous container if running
+            # Stop and remove the existing container
             docker-compose down || true
             
-            # Start the new container with the latest image
+            # Bring up the new container with the latest image
             docker-compose up -d
             
             # Clean up unused Docker images (optional)
