@@ -3,9 +3,9 @@ services:
   remi_server:
     container_name: remi_server
     build:
-      context: .
+      context: ./remi_Backend
       target: production
-      dockerfile: ./Dockerfile
+      dockerfile: Dockerfile
     image: remi_server:latest
     env_file: .env
     environment:
@@ -27,7 +27,24 @@ services:
     user: "node"
     networks:
       - default
-
+  mini_app:
+    container_name: mini_app
+    build:
+      context: ./mini_app
+      dockerfile: Dockerfile
+    image: mini_app:latest
+    environment:
+      NODE_ENV: production
+      VIRTUAL_HOST: app.mrbeas.net
+      VIRTUAL_PORT: 80
+      LETSENCRYPT_ENABLED: "true"
+      LETSENCRYPT_HOST: app.mrbeas.net
+      LETSENCRYPT_EMAIL: millionmulugeta09@gmail.com
+    expose:
+      - "80"
+    restart: unless-stopped
+    networks:
+      - default
   nginx-proxy:
     image: nginxproxy/nginx-proxy
     container_name: nginx-proxy
