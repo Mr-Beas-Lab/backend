@@ -45,10 +45,21 @@ jobs:
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
-          password: ${{ secrets.SERVER_PASSWORD }} 
+          password: ${{ secrets.SERVER_PASSWORD }}  # Use password authentication
           script: |
             TAG=1.0.${{ github.run_number }}
+            
+            # Ensure the directory exists
+            mkdir -p ~/mrbeas
+            
+            # Go to the project directory
             cd ~/mrbeas
+
+            # Ensure docker-compose.yml exists in the correct directory
+            if [ ! -f "docker-compose.yml" ]; then
+              echo "docker-compose.yml not found!"
+              exit 1
+            fi
 
             # Pull the versioned image and latest image from Docker Hub
             docker pull $DOCKERHUB_REPO:$TAG
