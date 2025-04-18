@@ -26,8 +26,8 @@ jobs:
           TAG=1.0.${{ github.run_number }}  # Use run number for versioning
           echo "Using tag: $TAG"
           
-          # Build the Docker image from the remi_Backend directory
-          docker build -t $DOCKERHUB_REPO:$TAG ./remi_Backend  # Adjust path to remi_Backend folder
+          # Build the Docker image from the remi_Backend directory (since the Dockerfile and docker-compose.yml are inside remi_Backend)
+          docker build -t $DOCKERHUB_REPO:$TAG ./remi_Backend  # Build from the correct path
 
           # Push the image with the version tag
           docker push $DOCKERHUB_REPO:$TAG
@@ -52,7 +52,7 @@ jobs:
             # Ensure the directory structure exists
             mkdir -p ~/mrbeas/remi_Backend
             
-            # Navigate to the directory where docker-compose.yml is located (~/mrbeas)
+            # Navigate to the directory where docker-compose.yml is located (in the mrbeas directory)
             cd ~/mrbeas
 
             # Ensure docker-compose.yml exists in the correct directory
