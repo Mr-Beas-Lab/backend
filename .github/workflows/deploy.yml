@@ -26,9 +26,13 @@ jobs:
           TAG=1.0.${{ github.run_number }}
           echo "Using tag: $TAG"
           
+          # Build the Docker image
           docker build -t $DOCKERHUB_REPO:$TAG .
+          
+          # Push the image with the version tag
           docker push $DOCKERHUB_REPO:$TAG
 
+          # Tag the image as latest and push it
           docker tag $DOCKERHUB_REPO:$TAG $DOCKERHUB_REPO:latest
           docker push $DOCKERHUB_REPO:latest
 
@@ -41,13 +45,17 @@ jobs:
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          password: ${{ secrets.SERVER_PASSWORD }} 
           script: |
             TAG=1.0.${{ github.run_number }}
             cd ~/mrbeas
 
+            # Pull the versioned image and latest image from Docker Hub
             docker pull $DOCKERHUB_REPO:$TAG
             docker pull $DOCKERHUB_REPO:latest
 
+            # Stop and remove the running container if it's present
             docker-compose down || true
+
+            # Start the new container with the latest image
             docker-compose up -d
