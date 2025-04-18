@@ -26,7 +26,7 @@ jobs:
           TAG=1.0.${{ github.run_number }}
           
           # Build the image with the version tag
-          docker build -t $DOCKERHUB_REPO:$TAG ./remi_Backend
+          docker build -t $DOCKERHUB_REPO:$TAG .
           
           # Push the versioned image to Docker Hub
           docker push $DOCKERHUB_REPO:$TAG
