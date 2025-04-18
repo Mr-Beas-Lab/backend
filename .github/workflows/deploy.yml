@@ -12,7 +12,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -22,45 +23,31 @@ jobs:
 
       - name: Build and push image with version tag
         run: |
-          # Create a versioned tag based on the build number
           TAG=1.0.${{ github.run_number }}
+          echo "Using tag: $TAG"
           
-          # Build the image with the version tag
           docker build -t $DOCKERHUB_REPO:$TAG .
-          
-          # Push the versioned image to Docker Hub
           docker push $DOCKERHUB_REPO:$TAG
-          
-          # Tag the image as 'latest'
+
           docker tag $DOCKERHUB_REPO:$TAG $DOCKERHUB_REPO:latest
-          
-          # Push the 'latest' image to Docker Hub
           docker push $DOCKERHUB_REPO:latest
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: SSH to the server and deploy
+      - name: Deploy to VPS
         uses: appleboy/ssh-action@v0.1.6
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            # Go to the project directory on the server
-            cd ~/remi_backend
-            
-            # Pull the latest image from Docker Hub (latest tag or versioned tag)
             TAG=1.0.${{ github.run_number }}
+            cd ~/mrbeas
+
             docker pull $DOCKERHUB_REPO:$TAG
             docker pull $DOCKERHUB_REPO:latest
-            
-            # Stop and remove the existing container
+
             docker-compose down || true
-            
-            # Bring up the new container with the latest image
             docker-compose up -d
-            
-            # Clean up unused Docker images (optional)
-            docker image prune -f
