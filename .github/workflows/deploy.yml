@@ -26,9 +26,9 @@ jobs:
           TAG=1.0.${{ github.run_number }}  # Use run number for versioning
           echo "Using tag: $TAG"
           
-          # Build the Docker image from the correct directory
-          docker build -t $DOCKERHUB_REPO:$TAG ./mrbeas/remi_Backend  # Fix path to remi_Backend directory
-          
+          # Build the Docker image from the remi_Backend directory
+          docker build -t $DOCKERHUB_REPO:$TAG ./remi_Backend  # Adjust path to remi_Backend folder
+
           # Push the image with the version tag
           docker push $DOCKERHUB_REPO:$TAG
 
