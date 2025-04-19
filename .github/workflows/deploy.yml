@@ -25,73 +25,110 @@ jobs:
       - name: Build and push Docker image
         run: |
           VERSION=1.0.${{ github.run_number }}
-          echo "Building version $VERSION"
-          
-          # Build from the root (where Dockerfile should be)
-          docker build -t $DOCKERHUB_REPO:$VERSION .
-          docker push $DOCKERHUB_REPO:$VERSION
-          
-          # Also tag as latest
-          docker tag $DOCKERHUB_REPO:$VERSION $DOCKERHUB_REPO:latest
-          docker push $DOCKERHUB_REPO:latest
-          
           echo "VERSION=$VERSION" >> $GITHUB_ENV
+          
+          # Build with proper tagging
+          docker build -t $DOCKERHUB_REPO:$VERSION -t $DOCKERHUB_REPO:latest .
+          
+          # Push both tags
+          docker push $DOCKERHUB_REPO:$VERSION
+          docker push $DOCKERHUB_REPO:latest
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Install sshpass
-        run: sudo apt-get install -y sshpass
-
-      - name: Prepare and Upload Files
-        env:
-          SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
+      - name: Install SSH dependencies
         run: |
-          # Create docker-compose.yml locally
-          cat << 'EOF' > docker-compose.yml
+          sudo apt-get update
+          sudo apt-get install -y sshpass
+
+      - name: Prepare deployment files
+        run: |
+          # Create proper docker-compose.yml
+          cat << 'EOF' > docker-compose.prod.yml
           version: '3.8'
           services:
             remi_server:
-              image: millionmulugeta/remi_server:latest
+              image: ${{ env.DOCKERHUB_REPO }}:latest
               container_name: remi_server
               restart: unless-stopped
-              env_file: .env
+              environment:
+                - NODE_ENV=production
               volumes:
                 - ./remi_Backend:/app
                 - /app/node_modules
               ports:
                 - "3000:3000"
+              networks:
+                - proxy-network
+              
+            nginx-proxy:
+              image: nginxproxy/nginx-proxy
+              container_name: nginx-proxy
+              ports:
+                - "80:80"
+                - "443:443"
+              volumes:
+                - certs:/etc/nginx/certs
+                - vhost:/etc/nginx/vhost.d
+                - html:/usr/share/nginx/html
+                - /var/run/docker.sock:/tmp/docker.sock:ro
+              networks:
+                - proxy-network
+
+            nginx-letsencrypt:
+              image: nginxproxy/acme-companion
+              container_name: nginx-letsencrypt
+              volumes:
+                - certs:/etc/nginx/certs
+                - vhost:/etc/nginx/vhost.d
+                - html:/usr/share/nginx/html
+                - /var/run/docker.sock:/var/run/docker.sock:ro
+              environment:
+                - DEFAULT_EMAIL=${{ secrets.LETSENCRYPT_EMAIL }}
+              depends_on:
+                - nginx-proxy
+              networks:
+                - proxy-network
+
+          volumes:
+            certs:
+            vhost:
+            html:
+
+          networks:
+            proxy-network:
+              driver: bridge
           EOF
 
-          # Upload files to server
-          sshpass -p "$SERVER_PASSWORD" scp -o StrictHostKeyChecking=no \
-            docker-compose.yml \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:$SERVER_DIR/
-
-      - name: Deploy to Server
+      - name: Transfer files to server
         env:
           SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
         run: |
-          sshpass -p "$SERVER_PASSWORD" ssh -o StrictHostKeyChecking=no \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
-            # Navigate to project directory
+          sshpass -p "$SERVER_PASSWORD" scp -o StrictHostKeyChecking=no \
+            docker-compose.prod.yml \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:$SERVER_DIR/docker-compose.yml
+
+      - name: Execute deployment
+        env:
+          SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
+        run: |
+          sshpass -p "$SERVER_PASSWORD" ssh -tt \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'ENDSSH'
             cd $SERVER_DIR
             
-            # Verify files exist
-            echo "Directory contents:"
-            ls -la
-            echo "Docker compose contents:"
-            cat docker-compose.yml
+            # Ensure directory structure exists
+            mkdir -p remi_Backend
             
-            # Pull new images
-            docker pull $DOCKERHUB_REPO:$VERSION || echo "Pull version failed, using cached"
-            docker pull $DOCKERHUB_REPO:latest || echo "Pull latest failed, using cached"
+            # Pull the specific version
+            docker pull $DOCKERHUB_REPO:$VERSION || true
             
-            # Stop and restart containers
-            docker-compose down || true
+            # Update containers
+            docker-compose down
             docker-compose up -d
             
-            # Verify containers are running
-            docker ps
-          EOF
+            # Cleanup
+            docker system prune -af
+            exit
+          ENDSSH
