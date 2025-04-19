@@ -44,6 +44,31 @@ jobs:
       - name: Install sshpass
         run: sudo apt-get install -y sshpass
 
+      - name: Prepare and Upload Files
+        env:
+          SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
+        run: |
+          # Create docker-compose.yml locally
+          cat << 'EOF' > docker-compose.yml
+          version: '3.8'
+          services:
+            remi_server:
+              image: millionmulugeta/remi_server:latest
+              container_name: remi_server
+              restart: unless-stopped
+              env_file: .env
+              volumes:
+                - ./remi_Backend:/app
+                - /app/node_modules
+              ports:
+                - "3000:3000"
+          EOF
+
+          # Upload files to server
+          sshpass -p "$SERVER_PASSWORD" scp -o StrictHostKeyChecking=no \
+            docker-compose.yml \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:$SERVER_DIR/
+
       - name: Deploy to Server
         env:
           SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
@@ -56,17 +81,17 @@ jobs:
             # Verify files exist
             echo "Directory contents:"
             ls -la
-            echo "Backend contents:"
-            ls -la remi_Backend/
+            echo "Docker compose contents:"
+            cat docker-compose.yml
             
             # Pull new images
-            docker pull $DOCKERHUB_REPO:$VERSION || true
-            docker pull $DOCKERHUB_REPO:latest || true
+            docker pull $DOCKERHUB_REPO:$VERSION || echo "Pull version failed, using cached"
+            docker pull $DOCKERHUB_REPO:latest || echo "Pull latest failed, using cached"
             
             # Stop and restart containers
             docker-compose down || true
             docker-compose up -d
             
-            # Cleanup
-            docker image prune -af
+            # Verify containers are running
+            docker ps
           EOF
