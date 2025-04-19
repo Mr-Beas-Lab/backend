@@ -6,14 +6,14 @@ on:
 
 env:
   DOCKERHUB_REPO: millionmulugeta/remi_server
-  COMPOSE_PROJECT_NAME: remi_backend
   SERVER_DIR: ~/mrbeas
+  COMPOSE_PROJECT_NAME: remi_backend
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Login to Docker Hub
@@ -24,44 +24,49 @@ jobs:
 
       - name: Build and push Docker image
         run: |
-          # Use semantic versioning (you can adjust this)
           VERSION=1.0.${{ github.run_number }}
-          LATEST_TAG=latest
+          echo "Building version $VERSION"
           
           # Build from the root (where Dockerfile should be)
           docker build -t $DOCKERHUB_REPO:$VERSION .
           docker push $DOCKERHUB_REPO:$VERSION
           
-          # Tag and push as latest
-          docker tag $DOCKERHUB_REPO:$VERSION $DOCKERHUB_REPO:$LATEST_TAG
-          docker push $DOCKERHUB_REPO:$LATEST_TAG
+          # Also tag as latest
+          docker tag $DOCKERHUB_REPO:$VERSION $DOCKERHUB_REPO:latest
+          docker push $DOCKERHUB_REPO:latest
           
-          # Store the version for the deploy step
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy to DigitalOcean
-        uses: appleboy/ssh-action@v0.1.6
-        with:
-          host: ${{ secrets.SERVER_IP }}
-          username: ${{ secrets.SERVER_USER }}
-          password: ${{ secrets.SERVER_PASSWORD }}
-          script: |
-            # Pull the new image
-            docker pull $DOCKERHUB_REPO:${{ env.VERSION }}
-            docker pull $DOCKERHUB_REPO:latest
-            
+      - name: Install sshpass
+        run: sudo apt-get install -y sshpass
+
+      - name: Deploy to Server
+        env:
+          SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
+        run: |
+          sshpass -p "$SERVER_PASSWORD" ssh -o StrictHostKeyChecking=no \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
             # Navigate to project directory
             cd $SERVER_DIR
             
-            # Stop and remove old containers
-            docker-compose down || true
+            # Verify files exist
+            echo "Directory contents:"
+            ls -la
+            echo "Backend contents:"
+            ls -la remi_Backend/
             
-            # Bring up new containers
+            # Pull new images
+            docker pull $DOCKERHUB_REPO:$VERSION || true
+            docker pull $DOCKERHUB_REPO:latest || true
+            
+            # Stop and restart containers
+            docker-compose down || true
             docker-compose up -d
             
-            # Clean up old images to save space
+            # Cleanup
             docker image prune -af
+          EOF
