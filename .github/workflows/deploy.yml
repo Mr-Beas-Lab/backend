@@ -1,72 +1,67 @@
-name: Build and Deploy
+name: Build and Deploy Backend
 
 on:
   push:
-    branches: [main]  # Adjust to your main branch if needed
+    branches: [main]
 
 env:
-  DOCKERHUB_REPO: millionmulugeta/remi_server  # Set your Docker Hub repository
-  COMPOSE_PROJECT_NAME: remi_backend  # Adjust as needed
+  DOCKERHUB_REPO: millionmulugeta/remi_server
+  COMPOSE_PROJECT_NAME: remi_backend
+  SERVER_DIR: ~/mrbeas
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4  # Checkout the repo
+        uses: actions/checkout@v4
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v3  # Login to Docker Hub using secrets
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push image with version tag
+      - name: Build and push Docker image
         run: |
-          TAG=1.0.${{ github.run_number }}  # Use run number for versioning
-          echo "Using tag: $TAG"
+          # Use semantic versioning (you can adjust this)
+          VERSION=1.0.${{ github.run_number }}
+          LATEST_TAG=latest
           
-          # Build the Docker image from the remi_Backend directory (since the Dockerfile and docker-compose.yml are inside remi_Backend)
-          docker build -t $DOCKERHUB_REPO:$TAG ./remi_Backend  # Build from the correct path
-
-          # Push the image with the version tag
-          docker push $DOCKERHUB_REPO:$TAG
-
-          # Tag the image as latest and push it
-          docker tag $DOCKERHUB_REPO:$TAG $DOCKERHUB_REPO:latest
-          docker push $DOCKERHUB_REPO:latest
+          # Build from the root (where Dockerfile should be)
+          docker build -t $DOCKERHUB_REPO:$VERSION .
+          docker push $DOCKERHUB_REPO:$VERSION
+          
+          # Tag and push as latest
+          docker tag $DOCKERHUB_REPO:$VERSION $DOCKERHUB_REPO:$LATEST_TAG
+          docker push $DOCKERHUB_REPO:$LATEST_TAG
+          
+          # Store the version for the deploy step
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
 
   deploy:
-    needs: build  # Make sure the build job runs first
+    needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy to VPS
+      - name: Deploy to DigitalOcean
         uses: appleboy/ssh-action@v0.1.6
         with:
-          host: ${{ secrets.SERVER_IP }}  # IP of the VPS
-          username: ${{ secrets.SERVER_USER }}  # VPS username
-          password: ${{ secrets.SERVER_PASSWORD }}  # Use password authentication
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}  
           script: |
-            TAG=1.0.${{ github.run_number }}  # Use run number for versioning
-            
-            # Ensure the directory structure exists
-            mkdir -p ~/mrbeas/remi_Backend
-            
-            # Navigate to the directory where docker-compose.yml is located (in the mrbeas directory)
-            cd ~/mrbeas
-
-            # Ensure docker-compose.yml exists in the correct directory
-            if [ ! -f "docker-compose.yml" ]; then
-              echo "docker-compose.yml not found!"
-              exit 1
-            fi
-
-            # Pull the versioned image and latest image from Docker Hub
-            docker pull $DOCKERHUB_REPO:$TAG
+            # Pull the new image
+            docker pull $DOCKERHUB_REPO:${{ env.VERSION }}
             docker pull $DOCKERHUB_REPO:latest
-
-            # Stop and remove the running container if it's present
+            
+            # Navigate to project directory
+            cd $SERVER_DIR
+            
+            # Stop and remove old containers
             docker-compose down || true
-
-            # Start the new container with the latest image
+            
+            # Bring up new containers
             docker-compose up -d
+            
+            # Clean up old images to save space
+            docker image prune -af
