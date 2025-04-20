@@ -3,7 +3,8 @@ services:
   remi_server:
     container_name: remi_server
     image: millionmulugeta/remi_server:latest  
-    env_file: .env
+    env_file:
+      - .env
     environment:
       NODE_ENV: production
       PORT: 80
