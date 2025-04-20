@@ -56,8 +56,6 @@ jobs:
                 - /app/node_modules
               networks:
                 - proxy-network
-              labels:
-                - "com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy=true"
 
             nginx-proxy:
               image: nginxproxy/nginx-proxy
@@ -114,12 +112,15 @@ jobs:
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'ENDSSH'
             cd ~/mrbeas
             
+            # Login to Docker Hub
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+            
             # Pull the specific version
             docker pull $DOCKERHUB_REPO:$VERSION || echo "Continuing with existing image"
             
             # Update containers
             docker-compose down || true
-            docker-compose up -d
+            echo "y" | docker-compose up -d
             
             # Verify deployment
             echo "Current containers:"
