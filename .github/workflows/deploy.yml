@@ -6,7 +6,7 @@ on:
 
 env:
   DOCKERHUB_REPO: millionmulugeta/remi_server
-  SERVER_DIR: /home/million/mrbeas/
+  SERVER_DIR: /home/million/mrbeas  # Ensure this points to the correct directory
   COMPOSE_PROJECT_NAME: remi_backend
 
 jobs:
@@ -52,7 +52,7 @@ jobs:
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
             
             # Navigate to the absolute path where docker-compose.yml is located
-            cd /home/million/mrbeas  # Using the absolute path here
+            cd $SERVER_DIR  # Using the SERVER_DIR environment variable here
             
             # Print the directory contents for debugging
             echo "Directory contents:"
@@ -60,7 +60,7 @@ jobs:
             
             # Ensure docker-compose.yml exists in the correct directory
             if [ ! -f "docker-compose.yml" ]; then
-              echo "docker-compose.yml not found in /home/million/mrbeas!"
+              echo "docker-compose.yml not found in $SERVER_DIR!"
               exit 1
             else
               echo "docker-compose.yml found!"
@@ -79,14 +79,11 @@ jobs:
             echo "Pulling the latest image..."
             docker pull $DOCKERHUB_REPO:latest || true
 
-            # Stop and restart containers using docker-compose
+            # Stop and restart containers
             echo "Stopping and restarting containers..."
             docker-compose down || true
             docker-compose up -d
             
-            # Ensure that the services are up and running
-            docker ps
-
             # Cleanup
             docker image prune -af
           EOF
