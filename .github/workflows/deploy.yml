@@ -40,7 +40,6 @@ jobs:
 
       - name: Prepare deployment files
         run: |
-          # Create .env file
           cat << 'EOF' > .env
           FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}
           FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}
@@ -48,7 +47,6 @@ jobs:
           KONTIGO_API_KEY=${{ secrets.KONTIGO_API_KEY }}
           EOF
 
-          # Create docker-compose.yml
           cat << EOF > docker-compose.yml
           version: '3.8'
           services:
@@ -107,76 +105,71 @@ jobs:
               driver: bridge
           EOF
 
-      - name: Transfer files to server
+      - name: Transfer files to server and install Docker Compose
         env:
           SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
-          SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}  # Add this to GitHub secrets
+          SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
         run: |
-          # Transfer files first
           sshpass -p "$SERVER_PASSWORD" scp -o StrictHostKeyChecking=no \
             docker-compose.yml .env \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:~/mrbeas/
 
-          # Install Docker Compose v2 using SSH with sudo
           sshpass -p "$SERVER_PASSWORD" ssh -tt \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'ENDSSH'
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << ENDSSH
+            set +x
             echo "$SUDO_PASSWORD" | sudo -S apt-get update
             echo "$SUDO_PASSWORD" | sudo -S apt-get install -y docker-ce docker-ce-cli containerd.io
-            echo "$SUDO_PASSWORD" | sudo -S curl -L "https://github.com/docker/compose/releases/download/v2.23.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            echo "$SUDO_PASSWORD" | sudo -S curl -L "https://github.com/docker/compose/releases/download/v2.23.0/docker-compose-\$(uname -s)-\$(uname -m)" -o /usr/local/bin/docker-compose
             echo "$SUDO_PASSWORD" | sudo -S chmod +x /usr/local/bin/docker-compose
+            set -x
             exit
           ENDSSH
 
       - name: Execute deployment
         env:
           SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
+          SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
           DOCKERHUB_REPO: ${{ env.DOCKERHUB_REPO }}
           LETSENCRYPT_EMAIL: ${{ env.LETSENCRYPT_EMAIL }}
         run: |
           sshpass -p "$SERVER_PASSWORD" ssh -tt \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'ENDSSH'
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << ENDSSH
             cd ~/mrbeas
-            
-            # Full cleanup
-            echo "=== Performing Full Cleanup ==="
-            docker rm -f $(docker ps -aq) || true
-            docker volume rm -f $(docker volume ls -q) || true
+
+            echo "=== Cleaning Up Existing Docker Containers ==="
+            docker rm -f \$(docker ps -aq) || true
+            docker volume rm -f \$(docker volume ls -q) || true
             docker network prune -f || true
-            
-            # Pull fresh images
-            echo "=== Pulling Fresh Images ==="
+
+            echo "=== Pulling Docker Images ==="
             docker pull ${DOCKERHUB_REPO}:latest
             docker pull nginxproxy/nginx-proxy:alpine
             docker pull nginxproxy/acme-companion:latest
-            
-            # Start services with Docker Compose v2
-            echo "=== Starting Services ==="
+
+            echo "=== Deploying via Docker Compose ==="
             /usr/local/bin/docker-compose -f docker-compose.yml up -d --force-recreate
-            
-            # Wait for services to initialize
+
             sleep 15
-            
-            # Verify deployment
-            echo "\n=== Deployment Verification ==="
-            echo "Container Status:"
+
+            echo "\n=== Docker Container Status ==="
             docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-            
-            echo "\nNginx Proxy Logs:"
+
+            echo "\n=== nginx-proxy Logs ==="
             docker logs nginx-proxy --tail 20
-            
-            echo "\nLet's Encrypt Logs:"
+
+            echo "\n=== Let's Encrypt Logs ==="
             docker logs nginx-letsencrypt --tail 20
-            
-            echo "\nBackend Logs:"
+
+            echo "\n=== Backend Logs ==="
             docker logs remi_server --tail 20 || echo "Backend not running yet"
-            
-            echo "\nSSL Certificate Status:"
+
+            echo "\n=== SSL Certificate Status ==="
             docker exec nginx-letsencrypt ls -la /etc/nginx/certs || echo "SSL setup not complete"
-            
-            echo "\nTesting Backend Connectivity:"
+
+            echo "\n=== Testing Backend ==="
             docker exec remi_server curl -I http://localhost:3000 || \
               docker exec remi_server curl -I http://localhost || \
               echo "Backend not responding"
-            
+
             exit
           ENDSSH
