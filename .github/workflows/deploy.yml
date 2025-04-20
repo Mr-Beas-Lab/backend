@@ -54,10 +54,14 @@ jobs:
             # Navigate to the absolute path where docker-compose.yml is located
             cd $SERVER_DIR  # Using the SERVER_DIR environment variable here
             
+            # Check current directory to verify the path
+            echo "Current directory after cd:"
+            pwd
+
             # Print the directory contents for debugging
             echo "Directory contents:"
             ls -la
-            
+
             # Ensure docker-compose.yml exists in the correct directory
             if [ ! -f "docker-compose.yml" ]; then
               echo "docker-compose.yml not found in $SERVER_DIR!"
