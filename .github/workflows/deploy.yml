@@ -53,12 +53,18 @@ jobs:
             # Navigate to project directory
             cd $SERVER_DIR
             
-            # Verify files exist
+            # Print directory structure to debug location of docker-compose.yml
             echo "Directory contents:"
             ls -la
-            echo "Backend contents:"
-            ls -la remi_Backend/
             
+            # Check for docker-compose.yml file
+            if [ ! -f "docker-compose.yml" ]; then
+              echo "docker-compose.yml not found in $SERVER_DIR!"
+              exit 1
+            else
+              echo "docker-compose.yml found!"
+            fi
+
             # Remove all existing Docker images only if images exist
             echo "Removing all existing Docker images..."
             EXISTING_IMAGES=$(docker images -q)
