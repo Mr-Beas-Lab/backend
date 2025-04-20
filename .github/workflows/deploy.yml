@@ -6,7 +6,7 @@ on:
 
 env:
   DOCKERHUB_REPO: millionmulugeta/remi_server
-  SERVER_DIR: ~/mrbeas
+  SERVER_DIR: ~/mrbeas/mrbeas
   COMPOSE_PROJECT_NAME: remi_backend
 
 jobs:
