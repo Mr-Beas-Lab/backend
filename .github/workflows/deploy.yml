@@ -1,97 +1,56 @@
-name: Build and Deploy Backend
+name: Deploy to Ubuntu Server
 
 on:
   push:
-    branches: [main]
-
-env:
-  DOCKERHUB_REPO: millionmulugeta/remi_server
-  SERVER_DIR: /home/million/mrbeas  # Ensure this points to the correct directory
-  COMPOSE_PROJECT_NAME: remi_backend
+    branches:
+      - main
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and push Docker image
-        run: |
-          VERSION=latest
-          echo "Building version $VERSION"
-          
-          # Build from the root (where Dockerfile should be)
-          docker build -t $DOCKERHUB_REPO:$VERSION .
-          docker push $DOCKERHUB_REPO:$VERSION
-          
-          # Tag as latest
-          docker tag $DOCKERHUB_REPO:$VERSION $DOCKERHUB_REPO:latest
-          docker push $DOCKERHUB_REPO:latest
-          
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install sshpass
-        run: sudo apt-get install -y sshpass
-
-      - name: Deploy to Server
+      - name: Deploy to Ubuntu Server via SSH
         env:
           SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
         run: |
           sshpass -p "$SERVER_PASSWORD" ssh -o StrictHostKeyChecking=no \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
-            
-            # Debug: Print SERVER_DIR value
-            echo "SERVER_DIR is set to: $SERVER_DIR"
-            
-            # Navigate to the absolute path where docker-compose.yml is located
-            echo "Attempting to cd into $SERVER_DIR"
-            cd $SERVER_DIR || exit 1  # If this fails, exit the script
+          ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
 
-            # Check current directory to verify the path
-            echo "Current directory after cd:"
+            echo "🔐 Connected to server"
+
+            cd /home/million/mrbeas || {
+              echo "❌ Failed to cd into /home/million/mrbeas";
+              exit 1;
+            }
+
+            echo "📂 Current working directory:"
             pwd
 
-            # Print the directory contents for debugging
-            echo "Directory contents:"
+            echo "📄 Directory contents:"
             ls -la
 
-            # Ensure docker-compose.yml exists in the correct directory
             if [ ! -f "docker-compose.yml" ]; then
-              echo "docker-compose.yml not found in $SERVER_DIR!"
+              echo "❌ docker-compose.yml not found!"
               exit 1
             else
-              echo "docker-compose.yml found!"
+              echo "✅ docker-compose.yml found!"
             fi
 
-            # Remove all existing Docker images only if images exist
-            echo "Removing all existing Docker images..."
-            EXISTING_IMAGES=$(docker images -q)
-            if [ -n "$EXISTING_IMAGES" ]; then
-              docker rmi $EXISTING_IMAGES || true
-            else
-              echo "No Docker images found to remove."
-            fi
-
-            # Pull the latest image
-            echo "Pulling the latest image..."
-            docker pull $DOCKERHUB_REPO:latest || true
-
-            # Stop and restart containers
-            echo "Stopping and restarting containers..."
+            echo "🧹 Removing existing Docker containers and images..."
             docker-compose down || true
+
+            docker image prune -af || true
+
+            echo "⬇️ Pulling latest image..."
+            docker pull millionmulugeta/remi_server:latest || true
+
+            echo "🚀 Starting containers with docker-compose..."
             docker-compose up -d
-            
-            # Cleanup
-            docker image prune -af
+
+            echo "✅ Deployment complete!"
+
           EOF
