@@ -20,36 +20,36 @@ jobs:
           sshpass -p "$SERVER_PASSWORD" ssh -o StrictHostKeyChecking=no \
           ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
 
+            set -e  # stop on error
+
             echo "🔐 Connected to server"
 
             cd /home/million/mrbeas || {
-              echo "❌ Failed to cd into /home/million/mrbeas";
-              exit 1;
+              echo "❌ Failed to cd into /home/million/mrbeas"
+              exit 1
             }
 
             echo "📂 Current working directory:"
             pwd
-
             echo "📄 Directory contents:"
             ls -la
 
             if [ ! -f "docker-compose.yml" ]; then
               echo "❌ docker-compose.yml not found!"
               exit 1
-            else
-              echo "✅ docker-compose.yml found!"
             fi
 
-            echo "🧹 Removing existing Docker containers and images..."
-            docker-compose down || true
+            echo "🛑 Stopping old containers..."
+            docker-compose down
 
+            echo "🧹 Pruning old images..."
             docker image prune -af || true
 
             echo "⬇️ Pulling latest image..."
             docker pull millionmulugeta/remi_server:latest || true
 
-            echo "🚀 Starting containers with docker-compose..."
-            docker-compose up -d
+            echo "🚀 Building & starting containers..."
+            docker-compose up -d --build
 
             echo "✅ Deployment complete!"
 
