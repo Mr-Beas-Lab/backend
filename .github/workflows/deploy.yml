@@ -41,7 +41,6 @@ jobs:
 
       - name: Prepare deployment files
         run: |
-          # Create compose file with actual values
           cat << EOF > docker-compose.yml
           version: '3.8'
           services:
@@ -115,12 +114,18 @@ jobs:
             # Login to Docker Hub
             echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
             
-            # Pull the specific version
+            # Force remove old containers
+            docker rm -f remi_server nginx-proxy nginx-letsencrypt || true
+            
+            # Remove old volumes and networks
+            docker volume rm -f mrbeas_certs mrbeas_vhost mrbeas_html || true
+            docker network rm -f mrbeas_proxy-network || true
+            
+            # Pull the new image
             docker pull $DOCKERHUB_REPO:$VERSION || echo "Continuing with existing image"
             
-            # Update containers
-            docker-compose down || true
-            echo "y" | docker-compose up -d
+            # Start new containers
+            docker-compose up -d --force-recreate
             
             # Verify deployment
             echo "Current containers:"
