@@ -46,7 +46,7 @@ jobs:
       - name: Prepare deployment files
         run: |
           # Create proper docker-compose.yml
-          cat << 'EOF' > docker-compose.prod.yml
+          cat << 'EOF' > docker-compose.yml
           version: '3.8'
           services:
             remi_server:
