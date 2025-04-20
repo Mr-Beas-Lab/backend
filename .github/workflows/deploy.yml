@@ -1,4 +1,4 @@
-name: Deploy to Ubuntu Server
+name: Build, Push Docker Image & Deploy
 
 on:
   push:
@@ -6,21 +6,34 @@ on:
       - main
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Deploy to Ubuntu Server via SSH
+      # 🔐 Docker login
+      - name: Log in to Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      # 🛠 Build Docker image
+      - name: Build Docker image
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/remi_server:latest .
+
+      # 🚀 Push image to Docker Hub
+      - name: Push Docker image
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/remi_server:latest
+
+      # 🔄 Deploy on remote Ubuntu server
+      - name: SSH and deploy on server
         env:
           SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
         run: |
           sshpass -p "$SERVER_PASSWORD" ssh -o StrictHostKeyChecking=no \
           ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
 
-            set -e  # stop on error
+            set -e
 
             echo "🔐 Connected to server"
 
@@ -29,28 +42,17 @@ jobs:
               exit 1
             }
 
-            echo "📂 Current working directory:"
-            pwd
-            echo "📄 Directory contents:"
-            ls -la
-
-            if [ ! -f "docker-compose.yml" ]; then
-              echo "❌ docker-compose.yml not found!"
-              exit 1
-            fi
-
             echo "🛑 Stopping old containers..."
             docker-compose down
 
-            echo "🧹 Pruning old images..."
+            echo "🧹 Cleaning up old Docker images..."
             docker image prune -af || true
 
-            echo "⬇️ Pulling latest image..."
-            docker pull millionmulugeta/remi_server:latest || true
+            echo "⬇️ Pulling latest Docker image from Docker Hub..."
+            docker pull ${{ secrets.DOCKER_USERNAME }}/remi_server:latest
 
-            echo "🚀 Building & starting containers..."
+            echo "🚀 Rebuilding and starting services..."
             docker-compose up -d --build
 
-            echo "✅ Deployment complete!"
-
+            echo "✅ Deployment successful!"
           EOF
