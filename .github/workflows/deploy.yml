@@ -6,7 +6,7 @@ on:
 
 env:
   DOCKERHUB_REPO: millionmulugeta/remi_server
-  SERVER_DIR: ~/mrbeas
+  SERVER_DIR: ~/mrbeas 
   COMPOSE_PROJECT_NAME: remi_backend
 
 jobs:
@@ -50,8 +50,8 @@ jobs:
         run: |
           sshpass -p "$SERVER_PASSWORD" ssh -o StrictHostKeyChecking=no \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
-            # Navigate to project directory
-            cd $SERVER_DIR
+            # Navigate to the correct project directory
+            cd $SERVER_DIR  # Change to the directory where docker-compose.yml is located
             
             # Print directory structure to debug location of docker-compose.yml
             echo "Directory contents:"
