@@ -19,11 +19,11 @@ jobs:
 
       # 🛠 Build Docker image
       - name: Build Docker image
-        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/remi_server:latest .
+        run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/remi_server:latest .
 
       # 🚀 Push image to Docker Hub
       - name: Push Docker image
-        run: docker push ${{ secrets.DOCKER_USERNAME }}/remi_server:latest
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/remi_server:latest
 
       # 🔄 Deploy on remote Ubuntu server
       - name: SSH and deploy on server
@@ -49,7 +49,7 @@ jobs:
             docker image prune -af || true
 
             echo "⬇️ Pulling latest Docker image from Docker Hub..."
-            docker pull ${{ secrets.DOCKER_USERNAME }}/remi_server:latest
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/remi_server:latest
 
             echo "🚀 Rebuilding and starting services..."
             docker-compose up -d --build
