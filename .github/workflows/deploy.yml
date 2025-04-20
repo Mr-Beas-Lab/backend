@@ -25,7 +25,6 @@ jobs:
         run: |
           VERSION=1.0.${{ github.run_number }}
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-          
           docker build -t $DOCKERHUB_REPO:$VERSION -t $DOCKERHUB_REPO:latest .
           docker push $DOCKERHUB_REPO:$VERSION
           docker push $DOCKERHUB_REPO:latest
@@ -41,22 +40,15 @@ jobs:
 
       - name: Prepare deployment files
         run: |
-          # Create .env file with proper Firebase key formatting
+          # Create .env file
           cat << 'EOF' > .env
-          # Firebase Configuration
           FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}
           FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}
           FIREBASE_PRIVATE_KEY='${{ secrets.FIREBASE_PRIVATE_KEY }}'
-          FIREBASE_PRIVATE_KEY_ID=${{ secrets.FIREBASE_PRIVATE_KEY_ID }}
-          FIREBASE_CLIENT_ID=${{ secrets.FIREBASE_CLIENT_ID }}
-
-          # Application Secrets
           KONTIGO_API_KEY=${{ secrets.KONTIGO_API_KEY }}
-          PRE_FUNDED_ACCOUNT_ID=${{ secrets.PRE_FUNDED_ACCOUNT_ID }}
-          ORGANIZATION_ID=${{ secrets.ORGANIZATION_ID }}
           EOF
 
-          # Create docker-compose.yml with concrete values
+          # Create docker-compose.yml
           cat << EOF > docker-compose.yml
           version: '3.8'
           services:
@@ -118,21 +110,22 @@ jobs:
       - name: Transfer files to server
         env:
           SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
+          SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}  # Add this to GitHub secrets
         run: |
-          # Create directory structure
-          sshpass -p "$SERVER_PASSWORD" ssh -o StrictHostKeyChecking=no \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
-            "mkdir -p ~/mrbeas/remi_Backend"
-          
-          # Transfer files with strict permissions
+          # Transfer files first
           sshpass -p "$SERVER_PASSWORD" scp -o StrictHostKeyChecking=no \
             docker-compose.yml .env \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:~/mrbeas/
-          
-          # Set proper permissions
-          sshpass -p "$SERVER_PASSWORD" ssh -o StrictHostKeyChecking=no \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
-            "chmod 644 ~/mrbeas/.env ~/mrbeas/docker-compose.yml"
+
+          # Install Docker Compose v2 using SSH with sudo
+          sshpass -p "$SERVER_PASSWORD" ssh -tt \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'ENDSSH'
+            echo "$SUDO_PASSWORD" | sudo -S apt-get update
+            echo "$SUDO_PASSWORD" | sudo -S apt-get install -y docker-ce docker-ce-cli containerd.io
+            echo "$SUDO_PASSWORD" | sudo -S curl -L "https://github.com/docker/compose/releases/download/v2.23.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            echo "$SUDO_PASSWORD" | sudo -S chmod +x /usr/local/bin/docker-compose
+            exit
+          ENDSSH
 
       - name: Execute deployment
         env:
@@ -143,12 +136,6 @@ jobs:
           sshpass -p "$SERVER_PASSWORD" ssh -tt \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'ENDSSH'
             cd ~/mrbeas
-            
-            # Ensure Docker is properly installed
-            sudo apt-get update
-            sudo apt-get install -y docker-ce docker-ce-cli containerd.io
-            sudo curl -L "https://github.com/docker/compose/releases/download/v2.23.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-            sudo chmod +x /usr/local/bin/docker-compose
             
             # Full cleanup
             echo "=== Performing Full Cleanup ==="
