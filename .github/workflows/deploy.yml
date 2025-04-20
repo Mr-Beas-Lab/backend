@@ -25,7 +25,11 @@ jobs:
         run: |
           VERSION=1.0.${{ github.run_number }}
           echo "VERSION=$VERSION" >> $GITHUB_ENV
+          
+          # Build with proper tagging
           docker build -t $DOCKERHUB_REPO:$VERSION -t $DOCKERHUB_REPO:latest .
+          
+          # Push both tags
           docker push $DOCKERHUB_REPO:$VERSION
           docker push $DOCKERHUB_REPO:latest
 
@@ -40,12 +44,27 @@ jobs:
 
       - name: Prepare deployment files
         run: |
-          # Create docker-compose.yml
-          cat << 'EOF' > docker-compose.yml
+          # Create .env file with proper Firebase key formatting
+          cat << 'EOF' > .env
+          # Firebase Configuration
+          FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY='${{ secrets.FIREBASE_PRIVATE_KEY }}'
+          FIREBASE_PRIVATE_KEY_ID=${{ secrets.FIREBASE_PRIVATE_KEY_ID }}
+          FIREBASE_CLIENT_ID=${{ secrets.FIREBASE_CLIENT_ID }}
+
+          # Application Secrets
+          KONTIGO_API_KEY=${{ secrets.KONTIGO_API_KEY }}
+          PRE_FUNDED_ACCOUNT_ID=${{ secrets.PRE_FUNDED_ACCOUNT_ID }}
+          ORGANIZATION_ID=${{ secrets.ORGANIZATION_ID }}
+          EOF
+
+          # Create docker-compose.yml with concrete values
+          cat << EOF > docker-compose.yml
           version: '3.8'
           services:
             remi_server:
-              image: $DOCKERHUB_REPO:latest
+              image: ${DOCKERHUB_REPO}:latest
               container_name: remi_server
               restart: unless-stopped
               env_file: .env
@@ -53,7 +72,7 @@ jobs:
                 - VIRTUAL_HOST=backend.mrbeas.net
                 - VIRTUAL_PORT=3000
                 - LETSENCRYPT_HOST=backend.mrbeas.net
-                - LETSENCRYPT_EMAIL=$LETSENCRYPT_EMAIL
+                - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
               volumes:
                 - ./remi_Backend:/app
                 - /app/node_modules
@@ -83,7 +102,7 @@ jobs:
                 - html:/usr/share/nginx/html
                 - /var/run/docker.sock:/var/run/docker.sock:ro
               environment:
-                - DEFAULT_EMAIL=$LETSENCRYPT_EMAIL
+                - DEFAULT_EMAIL=${LETSENCRYPT_EMAIL}
               depends_on:
                 - nginx-proxy
               networks:
@@ -99,35 +118,21 @@ jobs:
               driver: bridge
           EOF
 
-          # Create .env file with proper formatting
-          cat << 'EOF' > .env
-          # Firebase Configuration
-          FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}
-          FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}
-          FIREBASE_PRIVATE_KEY='${{ secrets.FIREBASE_PRIVATE_KEY }}'
-          FIREBASE_PRIVATE_KEY_ID=${{ secrets.FIREBASE_PRIVATE_KEY_ID }}
-          FIREBASE_CLIENT_ID=${{ secrets.FIREBASE_CLIENT_ID }}
-
-          # Application Secrets
-          KONTIGO_API_KEY=${{ secrets.KONTIGO_API_KEY }}
-          PRE_FUNDED_ACCOUNT_ID=${{ secrets.PRE_FUNDED_ACCOUNT_ID }}
-          ORGANIZATION_ID=${{ secrets.ORGANIZATION_ID }}
-          EOF
-
       - name: Transfer files to server
         env:
           SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
         run: |
-          # Create directory if not exists
+          # Create directory structure
           sshpass -p "$SERVER_PASSWORD" ssh -o StrictHostKeyChecking=no \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "mkdir -p ~/mrbeas/remi_Backend"
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
+            "mkdir -p ~/mrbeas/remi_Backend"
           
-          # Transfer both files with strict permissions
+          # Transfer files with strict permissions
           sshpass -p "$SERVER_PASSWORD" scp -o StrictHostKeyChecking=no \
             docker-compose.yml .env \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:~/mrbeas/
-
-          # Set proper permissions remotely
+          
+          # Set proper permissions
           sshpass -p "$SERVER_PASSWORD" ssh -o StrictHostKeyChecking=no \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
             "chmod 644 ~/mrbeas/.env ~/mrbeas/docker-compose.yml"
@@ -135,31 +140,43 @@ jobs:
       - name: Execute deployment
         env:
           SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
+          DOCKERHUB_REPO: ${{ env.DOCKERHUB_REPO }}
+          LETSENCRYPT_EMAIL: ${{ env.LETSENCRYPT_EMAIL }}
         run: |
           sshpass -p "$SERVER_PASSWORD" ssh -tt \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'ENDSSH'
             cd ~/mrbeas
             
             # Verify files exist
-            echo "=== Checking files ==="
+            echo "=== Deployment Files ==="
             ls -la
-            echo "=== .env contents ==="
+            echo "=== .env (sanitized) ==="
             cat .env | grep -v KEY
-            echo "====================="
+            echo "========================"
             
-            # Clean up old containers
-            echo "=== Cleaning up ==="
+            # Login to Docker Hub
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+            
+            # Full cleanup
+            echo "=== Cleaning Up ==="
             docker-compose down -v --remove-orphans || true
             docker system prune -af || true
             
-            # Start new containers
-            echo "=== Starting services ==="
+            # Start services with environment
+            echo "=== Starting Services ==="
+            export DOCKERHUB_REPO=$DOCKERHUB_REPO
+            export LETSENCRYPT_EMAIL=$LETSENCRYPT_EMAIL
             docker-compose up -d --force-recreate
             
             # Verify deployment
-            echo "=== Current containers ==="
+            echo "=== Deployment Status ==="
+            echo "Containers:"
             docker ps -a
-            echo "\n=== Backend logs ==="
-            docker logs remi_server --tail 20
+            echo "\nBackend Logs:"
+            docker logs remi_server --tail 20 || echo "Waiting for container to start..."
+            
+            # Final check
+            echo "\n=== Connectivity Test ==="
+            curl -I http://localhost:3000 || curl -I https://localhost || echo "Testing connection failed"
             exit
           ENDSSH
