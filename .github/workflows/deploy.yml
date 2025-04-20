@@ -137,46 +137,39 @@ jobs:
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
             "chmod 644 ~/mrbeas/.env ~/mrbeas/docker-compose.yml"
 
-      - name: Execute deployment
-        env:
-          SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
-          DOCKERHUB_REPO: ${{ env.DOCKERHUB_REPO }}
-          LETSENCRYPT_EMAIL: millionmulugeta09@gmail.com
-        run: |
-          sshpass -p "$SERVER_PASSWORD" ssh -tt \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'ENDSSH'
-            cd ~/mrbeas
-            
-            # Verify files exist
-            echo "=== Deployment Files ==="
-            ls -la
-            echo "=== .env (sanitized) ==="
-            cat .env | grep -v KEY
-            echo "========================"
-            
-            # Login to Docker Hub
-            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
-            
-            # Full cleanup
-            echo "=== Cleaning Up ==="
-            docker-compose down -v --remove-orphans || true
-            docker system prune -af || true
-            
-            # Start services with environment
-            echo "=== Starting Services ==="
-            export DOCKERHUB_REPO=$DOCKERHUB_REPO
-            export LETSENCRYPT_EMAIL=$LETSENCRYPT_EMAIL
-            docker-compose up -d --force-recreate
-            
-            # Verify deployment
-            echo "=== Deployment Status ==="
-            echo "Containers:"
-            docker ps -a
-            echo "\nBackend Logs:"
-            docker logs remi_server --tail 20 || echo "Waiting for container to start..."
-            
-            # Final check
-            echo "\n=== Connectivity Test ==="
-            curl -I http://localhost:3000 || curl -I https://localhost || echo "Testing connection failed"
-            exit
-          ENDSSH
+- name: Execute deployment
+  env:
+    SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
+    DOCKERHUB_REPO: ${{ env.DOCKERHUB_REPO }}
+    LETSENCRYPT_EMAIL: ${{ env.LETSENCRYPT_EMAIL }}
+  run: |
+    sshpass -p "$SERVER_PASSWORD" ssh -tt \
+      ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'ENDSSH'
+      cd ~/mrbeas
+      
+      # ... [previous deployment steps] ...
+      
+      # Proper verification steps:
+      echo "\n=== Service Verification ==="
+      
+      # 1. Check container status
+      echo "Container Status:"
+      docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+      
+      # 2. Check nginx-proxy configuration
+      echo "\nNginx Proxy Config:"
+      docker exec nginx-proxy cat /etc/nginx/conf.d/default.conf | grep -A 10 "backend.mrbeas.net" || echo "No proxy config found"
+      
+      # 3. Check backend health internally
+      echo "\nBackend Health Check:"
+      docker exec remi_server curl -s http://localhost:3000/health || \
+        docker exec remi_server curl -s http://localhost/api/health || \
+        echo "Health check failed"
+      
+      # 4. Check SSL certificate
+      echo "\nSSL Certificate:"
+      docker exec nginx-letsencrypt ls -la /etc/nginx/certs/backend.mrbeas.net* || \
+        echo "No SSL certificates found"
+      
+      exit
+    ENDSSH
