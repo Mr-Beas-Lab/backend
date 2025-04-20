@@ -10,7 +10,7 @@ export class HealthController {
 
     return {
       status: 'ok',
-      message: 'Service is healthy ',
+      message: 'Service is healthy ✅',
       timestamp: new Date().toISOString(),
     };
   }
