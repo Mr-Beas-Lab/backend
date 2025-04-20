@@ -96,7 +96,16 @@ jobs:
             proxy-network:
               driver: bridge
           EOF
-
+                    # Create .env file from secrets
+          cat << EOF > .env
+          FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}"
+          KONTIGO_API_KEY=${{ secrets.KONTIGO_API_KEY }}
+          PRE_FUNDED_ACCOUNT_ID=${{ secrets.PRE_FUNDED_ACCOUNT_ID }}
+          ORGANIZATION_ID= ${{ secrets.ORGANIZATION_ID }}
+          # Add other required variables
+          EOF
       - name: Transfer files to server
         env:
           SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
