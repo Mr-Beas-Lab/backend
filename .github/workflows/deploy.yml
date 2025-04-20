@@ -1,75 +1,72 @@
-name: Deploy App to Remote Server
+name: Build and Deploy Backend
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+
+env:
+  DOCKERHUB_REPO: millionmulugeta/remi_server
+  SERVER_DIR: ~/mrbeas
+  COMPOSE_PROJECT_NAME: remi_backend
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Log in to DockerHub
+      - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and Push Docker Image
+      - name: Build and push Docker image
         run: |
-          docker build -t ${{ secrets.DOCKERHUB_REPO }}:latest .
-          docker push ${{ secrets.DOCKERHUB_REPO }}:latest
+          VERSION=1.0.${{ github.run_number }}
+          echo "Building version $VERSION"
+          
+          # Build from the root (where Dockerfile should be)
+          docker build -t $DOCKERHUB_REPO:$VERSION .
+          docker push $DOCKERHUB_REPO:$VERSION
+          
+          # Also tag as latest
+          docker tag $DOCKERHUB_REPO:$VERSION $DOCKERHUB_REPO:latest
+          docker push $DOCKERHUB_REPO:latest
+          
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
 
-      - name: Deploy to Remote Server
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SERVER_IP }}
-          username: ${{ secrets.SERVER_USER }}
-          password: ${{ secrets.SERVER_PASSWORD }}
-          script_stop: true
-          script: |
-            set -e
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install sshpass
+        run: sudo apt-get install -y sshpass
 
-            echo "=== Go to project directory ==="
-            cd ~/mrbeas
-
-            echo "=== Install Docker Compose v2 if needed ==="
-            if ! command -v docker compose &> /dev/null; then
-              sudo mkdir -p /usr/local/lib/docker/cli-plugins
-              sudo curl -SL https://github.com/docker/compose/releases/download/v2.23.0/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
-              sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
-            fi
-
-            echo "=== Pull Latest Docker Image ==="
-            docker pull ${{ secrets.DOCKERHUB_REPO }}:latest
-
-            echo "=== Stop and Remove Current Containers ==="
-            docker compose down || true
-
-            echo "=== Start New Containers ==="
-            docker compose up -d --force-recreate
-
-            echo "=== Wait for SSL setup ==="
-            sleep 15
-
-            echo "=== Docker Containers ==="
-            docker compose ps
-
-            echo "=== nginx-proxy Logs ==="
-            docker logs nginx-proxy --tail 20 || echo "nginx-proxy container missing"
-
-            echo "=== Let's Encrypt Logs ==="
-            docker logs nginx-letsencrypt --tail 20 || echo "nginx-letsencrypt container missing"
-
-            echo "=== Backend Logs ==="
-            docker logs remi_server --tail 20 || echo "Backend container missing"
-
-            echo "=== Check SSL Certs ==="
-            docker exec nginx-letsencrypt ls /etc/nginx/certs || echo "No SSL certs found"
-
-            echo "=== Curl Backend Health Check ==="
-            curl -I http://localhost:3000 || echo "Backend not responding"
+      - name: Deploy to Server
+        env:
+          SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
+        run: |
+          sshpass -p "$SERVER_PASSWORD" ssh -o StrictHostKeyChecking=no \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
+            # Navigate to project directory
+            cd $SERVER_DIR
+            
+            # Verify files exist
+            echo "Directory contents:"
+            ls -la
+            echo "Backend contents:"
+            ls -la remi_Backend/
+            
+            # Pull new images
+            docker pull $DOCKERHUB_REPO:$VERSION || true
+            docker pull $DOCKERHUB_REPO:latest || true
+            
+            # Stop and restart containers
+            docker-compose down || true
+            docker-compose up -d
+            
+            # Cleanup
+            docker image prune -af
+          EOF
