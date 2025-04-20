@@ -6,7 +6,6 @@ on:
 
 env:
   DOCKERHUB_REPO: millionmulugeta/remi_server
-  SERVER_DIR: /home/million/mrbeas  # Absolute path to avoid confusion
   COMPOSE_PROJECT_NAME: remi_backend
 
 jobs:
@@ -56,8 +55,6 @@ jobs:
                 - /app/node_modules
               networks:
                 - proxy-network
-              labels:
-                - "com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy=true"
 
             nginx-proxy:
               image: nginxproxy/nginx-proxy
@@ -81,8 +78,6 @@ jobs:
                 - vhost:/etc/nginx/vhost.d
                 - html:/usr/share/nginx/html
                 - /var/run/docker.sock:/var/run/docker.sock:ro
-              environment:
-                - DEFAULT_EMAIL=${LETSENCRYPT_EMAIL}
               depends_on:
                 - nginx-proxy
               networks:
@@ -101,28 +96,22 @@ jobs:
       - name: Transfer files to server
         env:
           SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
-          LETSENCRYPT_EMAIL: ${{ secrets.LETSENCRYPT_EMAIL }}
         run: |
-          # First ensure the directory exists
-          sshpass -p "$SERVER_PASSWORD" ssh -o StrictHostKeyChecking=no \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
-            "mkdir -p $SERVER_DIR"
-          
-          # Then transfer the file
+          # Transfer compose file to existing directory
           sshpass -p "$SERVER_PASSWORD" scp -o StrictHostKeyChecking=no \
             docker-compose.yml \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:$SERVER_DIR/
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:~/mrbeas/
 
       - name: Execute deployment
         env:
           SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
-          LETSENCRYPT_EMAIL: ${{ secrets.LETSENCRYPT_EMAIL }}
         run: |
           sshpass -p "$SERVER_PASSWORD" ssh -tt \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'ENDSSH'
-            cd $SERVER_DIR
+            # Navigate to project directory (using relative path)
+            cd ~/mrbeas
             
-            # Ensure directory structure exists
+            # Ensure backend directory exists
             mkdir -p remi_Backend
             
             # Pull the specific version
