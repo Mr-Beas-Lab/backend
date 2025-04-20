@@ -6,7 +6,6 @@ on:
 
 env:
   DOCKERHUB_REPO: millionmulugeta/remi_server
-  LETSENCRYPT_EMAIL: ${{ secrets.LETSENCRYPT_EMAIL }}
 
 jobs:
   build:
@@ -33,14 +32,14 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Install SSH dependencies
+      - name: Install SSH & Docker tools
         run: |
           sudo apt-get update
           sudo apt-get install -y sshpass
 
       - name: Prepare deployment files
         run: |
-          cat << 'EOF' > .env
+          cat << EOF > .env
           FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}
           FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}
           FIREBASE_PRIVATE_KEY='${{ secrets.FIREBASE_PRIVATE_KEY }}'
@@ -59,10 +58,7 @@ jobs:
                 - VIRTUAL_HOST=backend.mrbeas.net
                 - VIRTUAL_PORT=3000
                 - LETSENCRYPT_HOST=backend.mrbeas.net
-                - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
-              volumes:
-                - ./remi_Backend:/app
-                - /app/node_modules
+                - LETSENCRYPT_EMAIL=${{ secrets.LETSENCRYPT_EMAIL }}
               networks:
                 - proxy-network
 
@@ -89,7 +85,7 @@ jobs:
                 - html:/usr/share/nginx/html
                 - /var/run/docker.sock:/var/run/docker.sock:ro
               environment:
-                - DEFAULT_EMAIL=${LETSENCRYPT_EMAIL}
+                - DEFAULT_EMAIL=${{ secrets.LETSENCRYPT_EMAIL }}
               depends_on:
                 - nginx-proxy
               networks:
@@ -105,22 +101,23 @@ jobs:
               driver: bridge
           EOF
 
-      - name: Transfer files to server and install Docker Compose
+      - name: Transfer files to server
         env:
           SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
-          SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
         run: |
           sshpass -p "$SERVER_PASSWORD" scp -o StrictHostKeyChecking=no \
             docker-compose.yml .env \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:~/mrbeas/
 
-          sshpass -p "$SERVER_PASSWORD" ssh -tt \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << ENDSSH
+      - name: Install Docker & Compose Plugin on server
+        env:
+          SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
+          SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
+        run: |
+          sshpass -p "$SERVER_PASSWORD" ssh -tt ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << ENDSSH
             set +x
             echo "$SUDO_PASSWORD" | sudo -S apt-get update
-            echo "$SUDO_PASSWORD" | sudo -S apt-get install -y docker-ce docker-ce-cli containerd.io
-            echo "$SUDO_PASSWORD" | sudo -S curl -L "https://github.com/docker/compose/releases/download/v2.23.0/docker-compose-\$(uname -s)-\$(uname -m)" -o /usr/local/bin/docker-compose
-            echo "$SUDO_PASSWORD" | sudo -S chmod +x /usr/local/bin/docker-compose
+            echo "$SUDO_PASSWORD" | sudo -S apt-get install -y docker.io docker-compose-plugin curl
             set -x
             exit
           ENDSSH
@@ -129,26 +126,24 @@ jobs:
         env:
           SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
           SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
-          DOCKERHUB_REPO: ${{ env.DOCKERHUB_REPO }}
-          LETSENCRYPT_EMAIL: ${{ env.LETSENCRYPT_EMAIL }}
         run: |
-          sshpass -p "$SERVER_PASSWORD" ssh -tt \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << ENDSSH
+          sshpass -p "$SERVER_PASSWORD" ssh -tt ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'ENDSSH'
             cd ~/mrbeas
 
             echo "=== Cleaning Up Existing Docker Containers ==="
-            docker rm -f \$(docker ps -aq) || true
-            docker volume rm -f \$(docker volume ls -q) || true
+            docker rm -f $(docker ps -aq) || true
+            docker volume rm -f $(docker volume ls -q) || true
             docker network prune -f || true
 
             echo "=== Pulling Docker Images ==="
-            docker pull ${DOCKERHUB_REPO}:latest
+            docker pull millionmulugeta/remi_server:latest
             docker pull nginxproxy/nginx-proxy:alpine
             docker pull nginxproxy/acme-companion:latest
 
             echo "=== Deploying via Docker Compose ==="
-            /usr/local/bin/docker-compose -f docker-compose.yml up -d --force-recreate
+            docker compose -f docker-compose.yml up -d --force-recreate
 
+            echo "=== Sleeping for 15s to allow SSL setup ==="
             sleep 15
 
             echo "\n=== Docker Container Status ==="
@@ -167,9 +162,7 @@ jobs:
             docker exec nginx-letsencrypt ls -la /etc/nginx/certs || echo "SSL setup not complete"
 
             echo "\n=== Testing Backend ==="
-            docker exec remi_server curl -I http://localhost:3000 || \
-              docker exec remi_server curl -I http://localhost || \
-              echo "Backend not responding"
+            curl -I http://localhost:3000 || echo "Backend not responding"
 
             exit
           ENDSSH
