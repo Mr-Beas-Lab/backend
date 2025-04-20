@@ -1,13 +1,17 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Logger } from '@nestjs/common';
 
 @Controller('health')
 export class HealthController {
+  private readonly logger = new Logger(HealthController.name);
+
   @Get()
   checkHealth() {
-    return { 
+    this.logger.log('Health check hit');
+
+    return {
       status: 'ok',
-      message: "healthy",
-      text: "hello"
+      message: 'Service is healthy ✅',
+      timestamp: new Date().toISOString(),
     };
   }
 }
