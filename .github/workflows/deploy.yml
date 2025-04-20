@@ -6,7 +6,7 @@ on:
 
 env:
   DOCKERHUB_REPO: millionmulugeta/remi_server
-  SERVER_DIR: ~/mrbeas/mrbeas
+  SERVER_DIR: /home/million/mrbeas  # Absolute path to avoid confusion
   COMPOSE_PROJECT_NAME: remi_backend
 
 jobs:
@@ -27,10 +27,7 @@ jobs:
           VERSION=1.0.${{ github.run_number }}
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           
-          # Build with proper tagging
           docker build -t $DOCKERHUB_REPO:$VERSION -t $DOCKERHUB_REPO:latest .
-          
-          # Push both tags
           docker push $DOCKERHUB_REPO:$VERSION
           docker push $DOCKERHUB_REPO:latest
 
@@ -45,12 +42,11 @@ jobs:
 
       - name: Prepare deployment files
         run: |
-          # Create proper docker-compose.yml
           cat << 'EOF' > docker-compose.yml
           version: '3.8'
           services:
             remi_server:
-              image: ${{ env.DOCKERHUB_REPO }}:latest
+              image: ${DOCKERHUB_REPO}:latest
               container_name: remi_server
               restart: unless-stopped
               environment:
@@ -58,11 +54,11 @@ jobs:
               volumes:
                 - ./remi_Backend:/app
                 - /app/node_modules
-              ports:
-                - "3000:3000"
               networks:
                 - proxy-network
-              
+              labels:
+                - "com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy=true"
+
             nginx-proxy:
               image: nginxproxy/nginx-proxy
               container_name: nginx-proxy
@@ -86,7 +82,7 @@ jobs:
                 - html:/usr/share/nginx/html
                 - /var/run/docker.sock:/var/run/docker.sock:ro
               environment:
-                - DEFAULT_EMAIL=${{ secrets.LETSENCRYPT_EMAIL }}
+                - DEFAULT_EMAIL=${LETSENCRYPT_EMAIL}
               depends_on:
                 - nginx-proxy
               networks:
@@ -105,14 +101,22 @@ jobs:
       - name: Transfer files to server
         env:
           SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
+          LETSENCRYPT_EMAIL: ${{ secrets.LETSENCRYPT_EMAIL }}
         run: |
+          # First ensure the directory exists
+          sshpass -p "$SERVER_PASSWORD" ssh -o StrictHostKeyChecking=no \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
+            "mkdir -p $SERVER_DIR"
+          
+          # Then transfer the file
           sshpass -p "$SERVER_PASSWORD" scp -o StrictHostKeyChecking=no \
             docker-compose.yml \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:$SERVER_DIR/docker-compose.yml
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:$SERVER_DIR/
 
       - name: Execute deployment
         env:
           SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
+          LETSENCRYPT_EMAIL: ${{ secrets.LETSENCRYPT_EMAIL }}
         run: |
           sshpass -p "$SERVER_PASSWORD" ssh -tt \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'ENDSSH'
@@ -122,13 +126,14 @@ jobs:
             mkdir -p remi_Backend
             
             # Pull the specific version
-            docker pull $DOCKERHUB_REPO:$VERSION || true
+            docker pull $DOCKERHUB_REPO:$VERSION || echo "Continuing with existing image"
             
             # Update containers
-            docker-compose down
+            docker-compose down || true
             docker-compose up -d
             
-            # Cleanup
-            docker system prune -af
+            # Verify deployment
+            echo "Current containers:"
+            docker ps
             exit
           ENDSSH
