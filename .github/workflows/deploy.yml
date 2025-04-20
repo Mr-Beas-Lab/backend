@@ -107,7 +107,7 @@ jobs:
           SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
         run: |
           sshpass -p "$SERVER_PASSWORD" scp -o StrictHostKeyChecking=no \
-            docker-compose.prod.yml \
+            docker-compose.yml \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:$SERVER_DIR/docker-compose.yml
 
       - name: Execute deployment
