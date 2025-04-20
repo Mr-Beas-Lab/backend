@@ -6,7 +6,7 @@ on:
 
 env:
   DOCKERHUB_REPO: millionmulugeta/remi_server
-  SERVER_DIR: ~/mrbeas 
+  SERVER_DIR: /home/million/mrbeas  # Use the full absolute path to your directory
   COMPOSE_PROJECT_NAME: remi_backend
 
 jobs:
@@ -50,16 +50,17 @@ jobs:
         run: |
           sshpass -p "$SERVER_PASSWORD" ssh -o StrictHostKeyChecking=no \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
-            # Navigate to the correct project directory
-            cd $SERVER_DIR  # Change to the directory where docker-compose.yml is located
             
-            # Print directory structure to debug location of docker-compose.yml
+            # Navigate to the absolute path where docker-compose.yml is located
+            cd /home/million/mrbeas  # Using the absolute path here
+            
+            # Print the directory contents for debugging
             echo "Directory contents:"
             ls -la
             
-            # Check for docker-compose.yml file
+            # Ensure docker-compose.yml exists in the correct directory
             if [ ! -f "docker-compose.yml" ]; then
-              echo "docker-compose.yml not found in $SERVER_DIR!"
+              echo "docker-compose.yml not found in /home/million/mrbeas!"
               exit 1
             else
               echo "docker-compose.yml found!"
@@ -77,12 +78,6 @@ jobs:
             # Pull the latest image
             echo "Pulling the latest image..."
             docker pull $DOCKERHUB_REPO:latest || true
-
-            # Ensure docker-compose.yml exists in the correct directory
-            if [ ! -f "docker-compose.yml" ]; then
-              echo "docker-compose.yml not found!"
-              exit 1
-            fi
 
             # Stop and restart containers
             echo "Stopping and restarting containers..."
