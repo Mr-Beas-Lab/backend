@@ -59,13 +59,24 @@ jobs:
             echo "Backend contents:"
             ls -la remi_Backend/
             
-            # Remove all existing images on the server
+            # Remove all existing Docker images only if images exist
             echo "Removing all existing Docker images..."
-            docker rmi $(docker images -q) || true
+            EXISTING_IMAGES=$(docker images -q)
+            if [ -n "$EXISTING_IMAGES" ]; then
+              docker rmi $EXISTING_IMAGES || true
+            else
+              echo "No Docker images found to remove."
+            fi
 
             # Pull the latest image
             echo "Pulling the latest image..."
             docker pull $DOCKERHUB_REPO:latest || true
+
+            # Ensure docker-compose.yml exists in the correct directory
+            if [ ! -f "docker-compose.yml" ]; then
+              echo "docker-compose.yml not found!"
+              exit 1
+            fi
 
             # Stop and restart containers
             echo "Stopping and restarting containers..."
