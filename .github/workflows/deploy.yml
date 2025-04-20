@@ -6,7 +6,7 @@ on:
 
 env:
   DOCKERHUB_REPO: millionmulugeta/remi_server
-  COMPOSE_PROJECT_NAME: remi_backend
+  LETSENCRYPT_EMAIL: ${{ secrets.LETSENCRYPT_EMAIL }}
 
 jobs:
   build:
@@ -41,11 +41,12 @@ jobs:
 
       - name: Prepare deployment files
         run: |
-          cat << 'EOF' > docker-compose.yml
+          # Create compose file with actual values
+          cat << EOF > docker-compose.yml
           version: '3.8'
           services:
             remi_server:
-              image: ${DOCKERHUB_REPO}:latest
+              image: $DOCKERHUB_REPO:latest
               container_name: remi_server
               restart: unless-stopped
               environment:
@@ -55,6 +56,8 @@ jobs:
                 - /app/node_modules
               networks:
                 - proxy-network
+              labels:
+                - "com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy=true"
 
             nginx-proxy:
               image: nginxproxy/nginx-proxy
@@ -78,6 +81,8 @@ jobs:
                 - vhost:/etc/nginx/vhost.d
                 - html:/usr/share/nginx/html
                 - /var/run/docker.sock:/var/run/docker.sock:ro
+              environment:
+                - DEFAULT_EMAIL=$LETSENCRYPT_EMAIL
               depends_on:
                 - nginx-proxy
               networks:
@@ -97,7 +102,6 @@ jobs:
         env:
           SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
         run: |
-          # Transfer compose file to existing directory
           sshpass -p "$SERVER_PASSWORD" scp -o StrictHostKeyChecking=no \
             docker-compose.yml \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:~/mrbeas/
@@ -108,11 +112,7 @@ jobs:
         run: |
           sshpass -p "$SERVER_PASSWORD" ssh -tt \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'ENDSSH'
-            # Navigate to project directory (using relative path)
             cd ~/mrbeas
-            
-            # Ensure backend directory exists
-            mkdir -p remi_Backend
             
             # Pull the specific version
             docker pull $DOCKERHUB_REPO:$VERSION || echo "Continuing with existing image"
@@ -123,6 +123,6 @@ jobs:
             
             # Verify deployment
             echo "Current containers:"
-            docker ps
+            docker ps --format "table {{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Ports}}"
             exit
           ENDSSH
