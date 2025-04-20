@@ -141,7 +141,7 @@ jobs:
         env:
           SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
           DOCKERHUB_REPO: ${{ env.DOCKERHUB_REPO }}
-          LETSENCRYPT_EMAIL: ${{ env.LETSENCRYPT_EMAIL }}
+          LETSENCRYPT_EMAIL: millionmulugeta09@gmail.com
         run: |
           sshpass -p "$SERVER_PASSWORD" ssh -tt \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'ENDSSH'
