@@ -79,11 +79,14 @@ jobs:
             echo "Pulling the latest image..."
             docker pull $DOCKERHUB_REPO:latest || true
 
-            # Stop and restart containers
+            # Stop and restart containers using docker-compose
             echo "Stopping and restarting containers..."
             docker-compose down || true
             docker-compose up -d
             
+            # Ensure that the services are up and running
+            docker ps
+
             # Cleanup
             docker image prune -af
           EOF
