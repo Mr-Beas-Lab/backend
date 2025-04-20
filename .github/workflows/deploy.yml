@@ -48,6 +48,8 @@ jobs:
               image: $DOCKERHUB_REPO:latest
               container_name: remi_server
               restart: unless-stopped
+              env_file:
+                - .env
               environment:
                 - NODE_ENV=production
               volumes:
