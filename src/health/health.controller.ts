@@ -7,6 +7,10 @@ export class HealthController {
   checkHealth() {
 
 
-    return { status: 'ok' };
+    return { 
+      status: 'ok',
+      message: "healthy"
+    
+    };
   }
 }
