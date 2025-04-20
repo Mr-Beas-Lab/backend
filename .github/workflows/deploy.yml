@@ -24,14 +24,14 @@ jobs:
 
       - name: Build and push Docker image
         run: |
-          VERSION=1.0.${{ github.run_number }}
+          VERSION=latest
           echo "Building version $VERSION"
           
           # Build from the root (where Dockerfile should be)
           docker build -t $DOCKERHUB_REPO:$VERSION .
           docker push $DOCKERHUB_REPO:$VERSION
           
-          # Also tag as latest
+          # Tag as latest
           docker tag $DOCKERHUB_REPO:$VERSION $DOCKERHUB_REPO:latest
           docker push $DOCKERHUB_REPO:latest
           
@@ -59,11 +59,16 @@ jobs:
             echo "Backend contents:"
             ls -la remi_Backend/
             
-            # Pull new images
-            docker pull $DOCKERHUB_REPO:$VERSION || true
+            # Remove all existing images on the server
+            echo "Removing all existing Docker images..."
+            docker rmi $(docker images -q) || true
+
+            # Pull the latest image
+            echo "Pulling the latest image..."
             docker pull $DOCKERHUB_REPO:latest || true
-            
+
             # Stop and restart containers
+            echo "Stopping and restarting containers..."
             docker-compose down || true
             docker-compose up -d
             
