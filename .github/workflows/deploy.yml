@@ -51,9 +51,13 @@ jobs:
           sshpass -p "$SERVER_PASSWORD" ssh -o StrictHostKeyChecking=no \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
             
-            # Navigate to the absolute path where docker-compose.yml is located
-            cd $SERVER_DIR  # Using the SERVER_DIR environment variable here
+            # Debug: Print SERVER_DIR value
+            echo "SERVER_DIR is set to: $SERVER_DIR"
             
+            # Navigate to the absolute path where docker-compose.yml is located
+            echo "Attempting to cd into $SERVER_DIR"
+            cd $SERVER_DIR || exit 1  # If this fails, exit the script
+
             # Check current directory to verify the path
             echo "Current directory after cd:"
             pwd
